@@ -6,5 +6,13 @@
 # Format: <from project path> -> <to project path>   # reason
 
 :core:navigation -> :core:mvi           # HandleEffects takes Flow<F : ScreenEffect>; callers name ScreenEffect
+
 :domain:feed -> :core:model             # FeedRepository and its use cases expose Article
+:domain:article -> :core:model          # ArticleRepository and ObserveArticle expose Article
+:domain:article -> :core:sharing        # ShareArticle returns the ShareResult declared by the port
+:domain:bookmarks -> :core:model        # BookmarkRepository and ObserveBookmarks expose Article
+
+# A fixtures module implements its feature's ports, so consumers name those port types.
 :fixtures:feed -> :domain:feed          # FakeFeedRepository implements FeedRepository
+:fixtures:article -> :domain:article    # FakeArticleRepository implements ArticleRepository
+:fixtures:bookmarks -> :domain:bookmarks # FakeBookmarkRepository implements BookmarkRepository

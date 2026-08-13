@@ -1,0 +1,11 @@
+# Projects the article sample's resolved graph is allowed to contain.
+:sample:article:shared
+:presentation:article
+:domain:article
+:fixtures:article
+:core:model
+:core:mvi
+:core:navigation
+:core:sharing
+:core:designsystem
+:core:ui

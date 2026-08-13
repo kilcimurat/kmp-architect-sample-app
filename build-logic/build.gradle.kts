@@ -27,6 +27,10 @@ gradlePlugin {
             id = "kmpa.kmp.framework"
             implementationClass = "com.mkilci.kmparchitect.buildlogic.KmpFrameworkConventionPlugin"
         }
+        register("architecture") {
+            id = "kmpa.architecture"
+            implementationClass = "com.mkilci.kmparchitect.buildlogic.ArchitectureConventionPlugin"
+        }
         register("androidApp") {
             id = "kmpa.android.app"
             implementationClass = "com.mkilci.kmparchitect.buildlogic.AndroidAppConventionPlugin"

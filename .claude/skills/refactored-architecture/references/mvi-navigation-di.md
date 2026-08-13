@@ -80,12 +80,19 @@ policy above expects acceptance while the ViewModel transport is usable and fail
 full channel; it never silently ignores `trySend`. It is process-memory delivery only, with no durable
 process-death guarantee. Persist genuine business state, not navigation commands.
 
-Fail-fast is only defensible if normal teardown cannot trigger it. Emit Effects exclusively from
-`viewModelScope`, which the ViewModel cancels before `onCleared()` closes the channel, so a
-rejection means a real defect — an effect sent from a scope the feature does not own — rather than a
-routine lifecycle race. Test that ordering explicitly; an unbounded `check` that can fire while a
-screen is being dismissed is a crash, not a guardrail. Consider a build-type-aware policy only if
-production telemetry later shows a path this ordering does not cover, and document it if so.
+Fail-fast is only defensible if normal teardown cannot trigger it. State the rule in terms of scope
+ownership, not of coroutines:
+
+- a **synchronous** Effect may be emitted directly from a ViewModel-owned method. `onAction` calling
+  `sendEffect` is the normal case and needs no coroutine;
+- an **asynchronous** Effect must originate from `viewModelScope`, or another scope the ViewModel
+  owns, which is cancelled before `onCleared()` closes the channel;
+- an Effect must never originate from an external or unowned scope.
+
+Under those three, a rejection means a real defect rather than a routine lifecycle race. Test the
+ordering explicitly; an unbounded `check` that can fire while a screen is being dismissed is a crash,
+not a guardrail. Consider a build-type-aware policy only if production telemetry later shows a path
+this ordering does not cover, and document it if so.
 
 ## 3. Action/Event/Effect flow
 
@@ -189,12 +196,17 @@ callbacks; they do not resolve repositories or navigate directly.
 
 ## 5. Koin ownership
 
-The container is runtime by design. Compile-time DI generates an aggregated component in the
-application module, so editing any feature reprocesses that module — the exact coupling this
-architecture removes at the Gradle level. Runtime composition keeps a leaf-feature edit inside the
-leaf. The cost is that a mis-wired graph fails at startup instead of at compile time, so every
-composition root owes a graph-startup test; treat that test as the price of the choice, not as
-optional coverage.
+The container is runtime by default, and the reason is measured rather than assumed: this
+implementation keeps a leaf-feature edit inside the leaf, with no generated code between a feature
+and its consumers. The cost is that a mis-wired graph fails at startup instead of at compile time,
+so every composition root owes a graph-startup test; treat that test as the price of the choice, not
+as optional coverage.
+
+The rule being enforced is about build behaviour, not about tooling category. Compile-time DI is not
+forbidden. What is forbidden is any strategy that puts aggregating work in `app/*` or makes a
+one-line change in a leaf feature reprocess unrelated modules. Some aggregation models do that;
+compiler-plugin approaches may not. Before swapping the container, inspect the real task graph and
+time a leaf-feature edit — then decide.
 
 Definitions live near what they implement, while selection/assembly belongs to a root:
 

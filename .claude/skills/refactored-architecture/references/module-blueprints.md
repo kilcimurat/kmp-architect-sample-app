@@ -183,7 +183,10 @@ Constraints:
 - depends only on its own `domain/<feature>` plus core contracts;
 - no real I/O, no clock or randomness that is not injected and seeded;
 - no `data/*`, no presentation, no other feature;
-- consumable only by the same feature's `domain`, `presentation`, and `sample` projects;
+- consumable only by the same feature's `presentation` **test** source sets and its `sample`,
+  enforced as an inbound allowlist — a fixtures project is a normal module, so without that rule the
+  production app can bind fake data and ship it;
+- worth creating only when two or more consumers exist; with one caller the fake belongs there;
 - unavailable external operations return explicit safe results rather than throwing generically.
 
 A cross-feature `fakes` or `testing` module that binds many features is the umbrella dependency this

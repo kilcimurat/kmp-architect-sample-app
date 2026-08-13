@@ -71,6 +71,12 @@ run on macOS runners, and a green Linux build must never be reported as iOS veri
 
 **6. Gradle Isolated Projects is compatible so far.**
 
+Status wording moves between releases and the user guide lags the release notes, so treat this as
+scoped to Gradle 9.7.0 and re-verify on any upgrade. The 9.7.0 release notes say the feature
+"transitions from being experimental to incubating", is not enabled by default, and is "not yet
+recommended for production use". It stays an optional measured optimisation here, never a
+requirement.
+
 `-Dorg.gradle.unsafe.isolated-projects=true` ran `:androidApp:assembleDebug` successfully with
 AGP 9.0.1, KMP 2.4.10, Compose and SQLDelight applied — no isolation violations reported. This is a
 2-project build; it must be re-checked once the tree reaches ~29 projects, which is where the

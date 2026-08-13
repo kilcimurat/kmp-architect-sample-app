@@ -228,11 +228,17 @@ configuration; a 30-project build configures 30 projects whatever you compile. K
 configuration cache enabled and treat configuration time as a tracked metric, not a footnote.
 
 **Gradle Isolated Projects.** Isolated Projects configures projects in parallel and is the direct
-countermeasure to the configuration cost above. It graduated from experimental to incubating in
-Gradle 9.7 (August 2026), is not enabled by default, and is not yet recommended for production — the
-selected AGP/KMP plugins must satisfy its safety requirements. Evaluate it explicitly: enable it,
-measure configuration time, and if plugins are incompatible, record which ones failed and revert
-rather than leaving a half-working flag in `gradle.properties`.
+countermeasure to the configuration cost above.
+
+Its status moves quickly and differs between the release notes and the user guide at any given
+moment, so **verify the current status and plugin compatibility against the official Gradle
+documentation for the version you are on** rather than trusting a status recorded here. As of the
+Gradle 9.7.0 release notes it "transitions from being experimental to incubating", is not enabled by
+default, and is "not yet recommended for production use".
+
+Treat it as an optional, measured optimisation — never an architectural requirement. Evaluate it
+explicitly: enable it, measure configuration time, and if plugins are incompatible, record which
+ones failed and revert rather than leaving a half-working flag in `gradle.properties`.
 
 **Task path discipline.** The daily loop should be a single sample task
 (`:sample:<feature>:androidApp:installDebug`). Verify that this invocation configures the expected

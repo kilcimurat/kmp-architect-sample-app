@@ -14,12 +14,18 @@ import kotlinx.coroutines.flow.receiveAsFlow
  * Delivery is in-process and non-durable. There is no process-death guarantee — persist business
  * state, never navigation commands.
  *
- * **Fail-fast, and why it is safe.** [sendEffect] rejects loudly instead of dropping silently. That
- * is only defensible because `clear()` cancels [viewModelScope] *before* calling [onCleared], so a
- * coroutine owned by this ViewModel cannot still be running when the transport closes. Send effects
- * only from [viewModelScope]; a rejection then means a real defect — an effect emitted from a scope
- * this screen does not own — rather than a routine teardown race. `MviViewModelTest` pins that
- * ordering so a lifecycle change in a future androidx release cannot turn it into a crash.
+ * **Fail-fast, and why it is safe.** [sendEffect] rejects loudly instead of dropping silently. The
+ * rule that makes that defensible is about scope ownership, not about coroutines:
+ *
+ * - a synchronous effect may be emitted directly from a ViewModel-owned method — `onAction` calling
+ *   [sendEffect] is the normal case and needs no coroutine;
+ * - an asynchronous effect must originate from `viewModelScope`, or another scope this ViewModel
+ *   owns, which `clear()` cancels *before* calling [onCleared] and closing the transport;
+ * - an effect must never originate from an external or unowned scope.
+ *
+ * Under those three, a rejection means a real defect rather than a routine teardown race.
+ * `MviViewModelTest` pins the ordering so a lifecycle change in a future androidx release cannot
+ * quietly turn it into a crash.
  */
 abstract class MviViewModel<
     S : ScreenState,

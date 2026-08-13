@@ -23,9 +23,10 @@ Splitting code into modules does not produce build isolation by itself. Four mec
    One feature-to-feature edge collapses the isolation claim for both.
 3. **`implementation` by default, so ABI-stable changes stop propagating.** A single unjustified
    `api` edge re-exports a dependency and re-compiles every consumer.
-4. **No aggregating compile-time codegen in the dependency path.** DI frameworks that generate an
-   aggregated component in the application module force that module to reprocess on every feature
-   change, which is exactly the cost this architecture removes.
+4. **No aggregating codegen in the dependency path.** Any code generation that collects across
+   modules — an aggregated DI component in the application module is the common example — makes that
+   module reprocess on every feature change. Judge a tool by its measured task graph, not by whether
+   it is compile-time or runtime.
 
 Treat the feature sample as the primary development loop, not an afterthought: a feature is not
 finished until its sample runs on Android and iOS.
@@ -72,7 +73,7 @@ Enforce these responsibilities:
 | `domain/*` | Pure business models, ports, use cases, rules | Compose, Koin, Android/UIKit, DTO/entity/SDK types |
 | `data/*` | Domain port implementations, sources, DTO/entity mapping | Presentation, UI state, navigation |
 | `presentation/*` | Shared UI, reducer MVI, UI mapping, ViewModel definitions | Data implementations, native controllers, repository lookup from composables |
-| `fixtures/<feature>` | Deterministic implementations of that feature's domain/platform ports, fixed test data | Real I/O, other features, presentation, data, app, production credentials |
+| `fixtures/<feature>` | Deterministic implementations of that feature's domain/platform ports, fixed test data | Real I/O, other features, presentation, data, app, production credentials — and being consumed by anything outside its own feature's presentation tests and sample |
 | `app/shared` | Root Compose surface, top-level typed graph, shared app composition, stable iOS API | Feature-owned business logic, native executable lifecycle |
 | `app/android`, native iOS host | Startup, configuration, platform SDK integration | Duplicated screens, reducers, or business policy |
 | `sample/<feature>` | Isolated executable development environment | `data/*`, app root, other features, production side-effect graphs |
@@ -93,6 +94,21 @@ any feature  → any other feature (cross-feature belongs to app/shared)
 either direction — not even from tests, because Gradle resolves that as a project cycle. Domain
 tests stub their own ports inline; fixtures exist for the consumers further out, `presentation`
 tests and the sample.
+
+Forbidding what `fixtures` may depend on is only half the rule. **Constrain its consumers with an
+allowlist**, because a fixtures project is an ordinary published module, not a test source set —
+nothing in Gradle stops the production app from binding fake data and shipping it:
+
+```text
+:fixtures:<feature> may be consumed by
+    :presentation:<feature>   test source sets only
+    :sample:<feature>:*       any source set
+and by nothing else — not app/*, not data/*, not another feature.
+```
+
+Create the module only when it has **two or more consumers**. A fake used by one sample and nothing
+else belongs in that sample; a module per feature that exists for a single caller is pure
+configuration cost with no payback.
 
 `sample → data` is the load-bearing rule. It is what keeps network, persistence, serialization, and
 vendor SDKs out of the feature development loop. Waive it only when persistence or a real
@@ -127,8 +143,9 @@ sample/<feature>/
 ```
 
 `fixtures/<feature>` exists so a deterministic fake is written once and consumed by both that
-feature's `commonTest` sources and its sample. It is feature-scoped by rule: only `presentation`,
-`domain`, and `sample` projects of the same feature may depend on it. A shared cross-feature fake
+feature's presentation tests and its sample. It is feature-scoped by rule: only the same feature's
+`presentation` **test** source sets and its `sample` may depend on it — never `domain` (that would
+be a project cycle), never `data`, never `app`, never another feature. A shared cross-feature fake
 module is exactly the umbrella dependency this architecture rejects.
 
 Widely shared UI modules are the natural enemy of build isolation: everything depends on
@@ -200,10 +217,15 @@ abstract class MviViewModel<
 - Never store one-shot effects in replaying state containers.
 - Define Effect delivery as in-process and non-durable. With this policy, an active buffered
   transport is expected to accept an Effect and rejection fails fast instead of silently dropping it.
-- Bound the fail-fast policy explicitly. Sending after `onCleared()` is a lifecycle defect, so send
-  Effects only from `viewModelScope`, which is cancelled before the transport closes. Prove that
-  ordering with a teardown-race test; an unbounded `check` that can fire during normal teardown is a
-  production crash, not a guardrail.
+- Bound the fail-fast policy explicitly, in terms of scope ownership rather than of coroutines:
+  - a **synchronous** Effect may be emitted directly from a ViewModel-owned method — `onAction`
+    calling `sendEffect` is correct and needs no coroutine;
+  - an **asynchronous** Effect must originate from `viewModelScope` or another scope the ViewModel
+    owns, which is cancelled before the Effect transport closes;
+  - an Effect must never originate from an external or unowned scope.
+
+  Prove the teardown ordering with a test. An unbounded `check` that can fire during normal teardown
+  is a production crash, not a guardrail.
 - Test consumed-no-replay behavior and closed-transport rejection.
 - Never merge Action, Event, and Effect into a global event hierarchy.
 
@@ -212,11 +234,18 @@ navigation, or Koin ownership.
 
 ## DI ownership
 
-Prefer a runtime composition container (Koin) over compile-time DI codegen, and record the reason:
-aggregating annotation processors build their component in the application module, so every feature
-change reprocesses that module and every sample inherits the same cost. That directly defeats
-module-level build isolation. The trade is deliberate — runtime graphs fail later than generated
-ones — so it must be paid back with DI graph startup tests for every composition root.
+Judge a DI choice by its build behaviour, not by its category.
+
+Runtime Koin is this architecture's default because the validated implementation preserves
+feature-level build isolation: no code generation sits between a leaf feature and its consumers.
+The trade is deliberate — runtime graphs fail at startup rather than at compile time — so it is paid
+back with a DI graph startup test for every composition root.
+
+Do **not** reject compile-time DI categorically. Reject any DI or code-generation strategy that
+introduces aggregating work into `app/*`, or otherwise makes a leaf-feature change reprocess
+unrelated modules — a property of some aggregation models, not of compile-time DI as such. If
+another framework is proposed, inspect its real task graph and measure a one-line leaf change before
+accepting it; the measurement decides, not the label.
 
 Use the container only for composition:
 

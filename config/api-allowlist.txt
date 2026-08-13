@@ -1,0 +1,10 @@
+# Justified `api` project dependencies.
+#
+# Every line widens recompilation: an `api` edge re-exports its target, so an ABI change there
+# rebuilds every consumer. Adding a line is therefore a deliberate, reviewable decision.
+#
+# Format: <from project path> -> <to project path>   # reason
+
+:core:navigation -> :core:mvi           # HandleEffects takes Flow<F : ScreenEffect>; callers name ScreenEffect
+:domain:feed -> :core:model             # FeedRepository and its use cases expose Article
+:fixtures:feed -> :domain:feed          # FakeFeedRepository implements FeedRepository

@@ -50,6 +50,18 @@ sample       → app, data, another feature
 rules that keep the development loop small, and they are the two most likely to be "temporarily"
 violated to make something compile.
 
+`fixtures` needs an inbound rule as well as outbound ones. It is an ordinary module, so without an
+explicit consumer allowlist the production app can depend on it and ship fake data with nothing to
+stop it:
+
+```text
+:fixtures:<feature>  consumable only by
+    :presentation:<feature>  test configurations only
+    :sample:<feature>:*      any configuration
+reject: app/* → fixtures/*, data/* → fixtures/*, fixtures of a different feature,
+        presentation/<feature> main (non-test) → fixtures/<feature>
+```
+
 For domain, also reject external implementation/UI dependencies such as Compose, Android framework
 libraries, Koin, persistence, network clients, and vendor SDKs. Adapt coordinate markers to the
 project’s actual stack.
@@ -95,7 +107,8 @@ Treat reducer source scanning as a guardrail, not a proof. Add tests for:
 
 Prove rejection rules with fixtures/tests as well as a passing production tree. At minimum cover
 domain→data, domain→presentation, presentation→data, core→feature, sample→app, **sample→data**,
-**feature→feature**, **fixtures→data**, **unjustified `api`**, forbidden Domain
+**feature→feature**, **fixtures→data**, **app→fixtures**, **presentation main→fixtures**,
+**unjustified `api`**, forbidden Domain
 Koin/Compose/Android/UIKit imports, native controller ownership in Presentation, and replaying
 `MutableStateFlow<Effect?>` storage.
 

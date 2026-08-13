@@ -69,6 +69,38 @@ xcodebuild -project iosSamples/KmpArchitectSamples.xcodeproj \
 Repeat the sample command for `ArticleSample` and `BookmarksSample`. Set `TEAM_ID` in
 `iosApp/Configuration/Config.xcconfig` for device builds; simulator builds need no signing.
 
+To build, install and launch one scheme in a single step — the iOS counterpart of
+`:sample:<feature>:androidApp:installDebug`:
+
+```bash
+./scripts/run-ios-simulator.sh FeedSample            # or ArticleSample, BookmarksSample,
+./scripts/run-ios-simulator.sh KmpArchitectSampleApp # KmpArchitectSampleApp
+./scripts/run-ios-simulator.sh FeedSample "iPhone 17 Pro"   # pick the simulator explicitly
+```
+
+It regenerates a missing `.xcodeproj`, targets the booted simulator when there is one, and fails
+if the launched process dies within three seconds — `simctl launch` alone reports success for an
+app that crashes on the first frame.
+
+## IDE run configurations
+
+Android Studio's KMP plugin binds to exactly one Xcode file — `.idea/xcode.xml` holds a single
+`XcodeMetaData` entry, and the `AppleRunConfiguration` it derives names a scheme without a path.
+Bound to `iosApp/KmpArchitectSampleApp.xcodeproj` it can therefore only offer the production
+scheme, no matter how many sample projects exist. Generating more `.xcodeproj` files does not
+change this; `iosSamples/KmpArchitectSamples.xcodeproj` and its three shared schemes were already
+there.
+
+`KmpArchitect.xcworkspace` resolves it: a hand-written `contents.xcworkspacedata` referencing both
+generated projects, so one bindable file exposes all four schemes
+(`xcodebuild -workspace KmpArchitect.xcworkspace -list` confirms). `.idea/xcode.xml` points at it.
+The two projects stay separate — the workspace adds no targets and no build relationship.
+
+Independently of the plugin, `.idea/runConfigurations/` holds four checked-in shell configurations
+(`iOS Feed Sample`, `iOS Article Sample`, `iOS Bookmarks Sample`, `iOS Production App`) that call
+`run-ios-simulator.sh`. They are what the samples appear as next to their Android counterparts on a
+fresh clone; the rest of `.idea/` stays ignored.
+
 Recorded runtime acceptance on iPhone 17 Pro: production starts empty and Refresh loads four Demo
 Backend articles; Feed and Bookmarks fixtures render, navigate to the
 sample boundary and return; Article bookmark state changes and its fake Share emits `Shared.` without

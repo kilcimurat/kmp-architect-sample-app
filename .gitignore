@@ -5,7 +5,10 @@
 xcuserdata
 !src/**/build/
 local.properties
-.idea
+.idea/*
+# The iOS run configurations are part of the developer loop, like the Android ones the IDE
+# derives from the Gradle modules. Nothing derives these, so they are checked in.
+!.idea/runConfigurations/
 .DS_Store
 captures
 .externalNativeBuild

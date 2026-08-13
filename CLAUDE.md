@@ -98,6 +98,7 @@ plugins), `references/platform-hosts-samples.md` (hosts, samples, framework embe
 
 # The daily loop: build and run ONE feature
 ./gradlew :sample:feed:androidApp:installDebug     # also :article, :bookmarks
+./scripts/run-ios-simulator.sh FeedSample          # iOS equivalent: build, install, launch
 
 # Production
 ./gradlew :app:android:assembleDebug

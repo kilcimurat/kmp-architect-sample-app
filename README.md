@@ -156,12 +156,31 @@ Xcode projects are generated from reviewable XcodeGen specs rather than hand-edi
 
 ```bash
 ./scripts/generate-xcode-projects.sh          # needs `brew install xcodegen`
+open KmpArchitect.xcworkspace                 # both projects, all four schemes
 open iosApp/KmpArchitectSampleApp.xcodeproj
 open iosSamples/KmpArchitectSamples.xcodeproj
 ```
 
+`KmpArchitect.xcworkspace` is hand-written (nine lines of `contents.xcworkspacedata`, no generated
+UUIDs) and only references the two generated projects. Production and samples stay separate
+projects — the workspace exists because an IDE binds to a single Xcode file, and binding it to a
+project would hide whichever three schemes are not in it.
+
 Production scheme: `KmpArchitectSampleApp`. Sample schemes: `FeedSample`, `ArticleSample`,
 `BookmarksSample`.
+
+Build, install and launch one of them on a simulator without opening Xcode — the iOS counterpart of
+`:sample:feed:androidApp:installDebug`:
+
+```bash
+./scripts/run-ios-simulator.sh FeedSample     # also ArticleSample, BookmarksSample,
+                                              # KmpArchitectSampleApp
+```
+
+In Android Studio the KMP plugin derives its own iOS run configurations from the single Xcode file
+recorded in `.idea/xcode.xml`; pointing that at `KmpArchitect.xcworkspace` gives all four schemes
+instead of only the production one. The checked-in `.idea/runConfigurations/` wrap the script above
+and work regardless of the plugin — same four entries, `iOS Feed Sample` and friends.
 
 Note for non-macOS hosts: Apple link and test tasks are silently **skipped** on Linux while Gradle
 still reports `BUILD SUCCESSFUL`. Treat a green Linux build as evidence of nothing on iOS. The iOS

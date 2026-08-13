@@ -24,5 +24,6 @@ done
 
 echo
 echo "Done. Open one of:"
+echo "  $repo_root/KmpArchitect.xcworkspace                    (both projects, all four schemes)"
 echo "  $repo_root/iosApp/KmpArchitectSampleApp.xcodeproj"
 echo "  $repo_root/iosSamples/KmpArchitectSamples.xcodeproj   (schemes: FeedSample, ArticleSample, BookmarksSample)"

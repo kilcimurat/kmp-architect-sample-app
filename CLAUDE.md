@@ -28,8 +28,9 @@ Base package `com.mkilci.kmparchitect`. Frameworks: `AppShared`, `FeedSample`, `
 `BookmarksSample` (derived from the Gradle path — check with `:<module>:printFrameworkName`).
 
 `docs/` records what was measured rather than assumed: `00-toolchain.md` (version constraints found
-by building), `01-ios.md` (what is and is not verified on Linux, plus a first-Mac-run checklist),
-`02-benchmarks.md` (build-isolation measurements).
+by building), `01-ios.md` (macOS framework/Xcode host evidence and runtime limits),
+`02-benchmarks.md` (two-sample build-isolation measurements), and `03-isolated-projects.md`
+(measured decision not to enable it, plus the retained migration design).
 
 ## The architecture skill is the spec
 
@@ -74,6 +75,14 @@ Two verification commands, kept separate: `architectureCheck` (declared edges + 
 `isolationCheck` (each sample's *resolved* graph against a checked-in allowlist file). Folder shape
 is not evidence of isolation; a resolved graph is.
 
+`isolationCheck` runs twice per sample — `isolationCheck<Feature>Android` resolves the executable's
+`debugRuntimeClasspath`, `isolationCheck<Feature>Ios` resolves the framework module's
+`iosSimulatorArm64CompileKlibraries`. One allowlist serves both: the roots differ
+(`:sample:<f>:androidApp` vs `:sample:<f>:shared`) and each root is excluded from its own graph, so
+the projects underneath must match on both platforms. Reports land in
+`build/reports/architecture/isolation-<feature>-{android,ios}.txt`. The iOS gate resolves klibs
+rather than linking, so unlike the Xcode builds it is valid on Linux too.
+
 Reference docs (read the relevant one before touching that area):
 `references/module-blueprints.md` (module creation/moves), `references/mvi-navigation-di.md`
 (screens, effects, navigation, Koin), `references/build-system.md` (Gradle/targets/convention
@@ -92,7 +101,7 @@ plugins), `references/platform-hosts-samples.md` (hosts, samples, framework embe
 
 # Production
 ./gradlew :app:android:assembleDebug
-./gradlew :app:shared:compileKotlinIosSimulatorArm64   # iOS Kotlin compiles here; linking does not
+./gradlew :app:shared:linkDebugFrameworkIosSimulatorArm64
 
 # Evidence
 ./gradlew :sample:feed:androidApp:dependencies --configuration debugRuntimeClasspath
@@ -110,14 +119,15 @@ No lint/format task is configured; `kotlin.code.style=official` is the only styl
 
 ### Host limitations
 
-This checkout runs on **Linux**, and the split matters:
+Validation depends on the active host:
 
-- iOS **Kotlin compiles here** — `compileKotlinIos{SimulatorArm64,Arm64}` genuinely execute and
-  produce klibs, so iosMain source errors are caught locally.
-- iOS **linking does not**. `linkDebugFrameworkIosSimulatorArm64` is **silently SKIPPED and still
-  reports `BUILD SUCCESSFUL`**. Never read that as iOS verification, and never put an iOS link or
-  Xcode step in a Linux CI job.
-- Android is fully verifiable: AVD `sugaria_pixel6a_api36` boots here.
+- On macOS, link every required Kotlin framework and build the real production/sample Xcode schemes;
+  framework compilation alone is not native-executable evidence.
+- On Linux, Apple link/test tasks can be skipped while Gradle still reports success. Treat only the
+  compiled klib as evidence and run every native iOS gate on macOS. There is no CI in this
+  repository, so nothing catches this automatically — a green Linux build proves nothing about iOS.
+- When an emulator/simulator exists, install and exercise the hosts. Record unavailable runtime
+  interaction explicitly instead of inferring it from a build.
 
 ## Build system facts
 

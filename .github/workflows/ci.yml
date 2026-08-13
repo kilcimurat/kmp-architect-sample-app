@@ -1,0 +1,149 @@
+name: CI
+
+# Gates are separate jobs on purpose. The two cheapest checks -- architecture and isolation -- run
+# first and independently, so a contributor who widened a sample's graph learns that in under a
+# minute instead of after a full Android build.
+#
+# iOS jobs run on macOS. They must: on Linux, linkDebugFramework* is silently SKIPPED and the build
+# still reports success, so a Linux "iOS job" would go green without linking anything.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  architecture-check:
+    name: Architecture rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      # The rules themselves are unit tested; running those first means a broken rule is reported as
+      # a broken rule rather than as a mysterious architecture failure.
+      - run: ./gradlew buildLogicTest
+      - run: ./gradlew architectureCheck
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: architecture-report
+          path: build/reports/architecture/
+
+  isolation-check:
+    name: Sample isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew isolationCheck
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolation-report
+          path: build/reports/architecture/
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew check
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+
+  android-production:
+    name: Android app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :app:android:assembleDebug
+
+  android-samples:
+    name: Android sample (${{ matrix.feature }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [feed, article, bookmarks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      # Every sample is assembled. A sample that stops building is a feature that can no longer be
+      # developed in isolation, which is a regression even when the app still builds.
+      - run: ./gradlew :sample:${{ matrix.feature }}:androidApp:assembleDebug
+
+  ios-production:
+    name: iOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: brew install xcodegen
+      - run: ./scripts/generate-xcode-projects.sh
+      # Linking is necessary but not sufficient: a framework that links is not an app that builds.
+      - run: ./gradlew :app:shared:linkDebugFrameworkIosSimulatorArm64
+      - name: Build the native executable
+        run: |
+          xcodebuild -project iosApp/KmpArchitectSampleApp.xcodeproj \
+            -scheme KmpArchitectSampleApp \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+
+  ios-samples:
+    name: iOS sample (${{ matrix.scheme }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [FeedSample, ArticleSample, BookmarksSample]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: brew install xcodegen
+      - run: ./scripts/generate-xcode-projects.sh
+      - name: Build the native executable
+        run: |
+          xcodebuild -project iosSamples/KmpArchitectSamples.xcodeproj \
+            -scheme ${{ matrix.scheme }} \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build

@@ -171,8 +171,12 @@ object FixedItems {
 ```
 
 One deterministic implementation per domain port, written once and consumed by two callers: that
-feature's `commonTest` sources and its sample. Duplicating a fake between the two is the problem
+feature's `presentation` tests and its sample. Duplicating a fake between the two is the problem
 this module exists to remove.
+
+Domain is not one of those callers. `fixtures` implements domain's ports, so a dependency back from
+domain — including from its test source set — is a project cycle Gradle rejects. Domain tests stub
+their own ports inline, which is cheap because a use-case test needs one method, not a fixture set.
 
 Constraints:
 
@@ -271,6 +275,7 @@ Place tests beside ownership:
 
 - domain rules/use cases: domain `commonTest`;
 - repository mapping/sync: data `commonTest` plus platform tests;
+- domain rules/use cases: domain `commonTest` with inline stubs (never `fixtures`, see §3);
 - reducers/ViewModels/effects: presentation `commonTest`, using `fixtures/<feature>`;
 - state-store concurrency and effect transport: `core:mvi/commonTest`;
 - sample fixture graph startup: sample shared `commonTest`;

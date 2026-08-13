@@ -1,0 +1,12 @@
+# Projects the feed sample's resolved graph is allowed to contain.
+# isolationCheck fails, naming the offender, if anything else appears.
+# Widening this list is a reviewable diff -- that is the point.
+:sample:feed:shared
+:presentation:feed
+:domain:feed
+:fixtures:feed
+:core:model
+:core:mvi
+:core:navigation
+:core:designsystem
+:core:ui

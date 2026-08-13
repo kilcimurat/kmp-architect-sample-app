@@ -81,13 +81,18 @@ These edges are forbidden without exception:
 
 ```text
 domain       → data, presentation, app, sample, fixtures
-presentation → data, app, sample
+presentation → data, app, sample          (main sources; commonTest may use fixtures)
 data         → presentation, app, sample
 core         → domain, data, presentation, app, sample, fixtures
 sample       → app, data, another feature
 fixtures     → data, presentation, app, another feature
 any feature  → any other feature (cross-feature belongs to app/shared)
 ```
+
+`fixtures/<feature>` implements `domain/<feature>`'s ports, so domain can never depend on it in
+either direction — not even from tests, because Gradle resolves that as a project cycle. Domain
+tests stub their own ports inline; fixtures exist for the consumers further out, `presentation`
+tests and the sample.
 
 `sample → data` is the load-bearing rule. It is what keeps network, persistence, serialization, and
 vendor SDKs out of the feature development loop. Waive it only when persistence or a real

@@ -1,6 +1,7 @@
 rootProject.name = "KmpArchitectSampleApp"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             mavenContent {

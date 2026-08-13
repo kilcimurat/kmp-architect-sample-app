@@ -30,3 +30,11 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 include(":shared")
+
+include(":core:common")
+include(":core:designsystem")
+include(":core:model")
+include(":core:mvi")
+include(":core:navigation")
+include(":core:sharing")
+include(":core:ui")

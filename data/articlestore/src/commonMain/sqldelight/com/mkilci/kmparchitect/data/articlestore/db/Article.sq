@@ -1,0 +1,45 @@
+-- Local storage is the observable truth for article data. Remote responses are synchronised into
+-- this table; nothing in the app renders a second source.
+CREATE TABLE articleRow (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    source TEXT NOT NULL,
+    url TEXT NOT NULL,
+    publishedAtEpochMillis INTEGER NOT NULL,
+    -- Fully qualified: a bare `Boolean` makes SQLDelight treat it as a custom type and demand an adapter.
+    bookmarked INTEGER AS kotlin.Boolean NOT NULL DEFAULT 0
+);
+
+CREATE INDEX articleRow_publishedAt ON articleRow(publishedAtEpochMillis);
+
+selectAll:
+SELECT * FROM articleRow;
+
+selectById:
+SELECT * FROM articleRow WHERE id = ?;
+
+selectBookmarked:
+SELECT * FROM articleRow WHERE bookmarked = 1;
+
+-- Upsert in two statements instead of ON CONFLICT ... DO UPDATE.
+--
+-- Native upsert needs SQLite 3.24, which arrived in Android API 30. This project's minSdk is 24,
+-- whose bundled SQLite is 3.9, so the modern syntax would compile here and fail on a real device.
+-- Insert-then-update is portable and has the property we actually need: the UPDATE lists only
+-- content columns, so a feed refresh can never silently un-bookmark an article.
+insertIfAbsent:
+INSERT OR IGNORE INTO articleRow(id, title, summary, source, url, publishedAtEpochMillis, bookmarked)
+VALUES (?, ?, ?, ?, ?, ?, 0);
+
+updateContent:
+UPDATE articleRow SET
+    title = ?,
+    summary = ?,
+    source = ?,
+    url = ?,
+    publishedAtEpochMillis = ?
+WHERE id = ?;
+
+setBookmarked:
+UPDATE articleRow SET bookmarked = ? WHERE id = ?;

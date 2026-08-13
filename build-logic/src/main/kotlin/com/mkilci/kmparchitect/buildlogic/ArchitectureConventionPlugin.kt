@@ -47,6 +47,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             group = "verification"
             description = "Checks declared dependency edges and Kotlin sources against the architecture rules."
             apiAllowlist.set(target.layout.projectDirectory.file("config/api-allowlist.txt"))
+            infrastructureModules.set(target.layout.projectDirectory.file("config/infrastructure-modules.txt"))
             report.set(target.layout.buildDirectory.file("reports/architecture/architecture-check.txt"))
         }
 

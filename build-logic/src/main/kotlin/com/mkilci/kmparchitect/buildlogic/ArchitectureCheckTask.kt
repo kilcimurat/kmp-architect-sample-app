@@ -45,6 +45,10 @@ abstract class ArchitectureCheckTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val apiAllowlist: RegularFileProperty
 
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val infrastructureModules: RegularFileProperty
+
     @get:OutputFile
     abstract val report: RegularFileProperty
 
@@ -55,9 +59,11 @@ abstract class ArchitectureCheckTask : DefaultTask() {
             ProjectEdge(from, to, configuration)
         }
         val allowlist = parseAllowlist(apiAllowlist.get().asFile)
+        val infrastructure = parseLines(infrastructureModules.get().asFile)
         val sources = readSources()
 
-        val violations = DependencyRules.violations(parsedEdges, allowlist) + SourceRules.violations(sources)
+        val violations = DependencyRules.violations(parsedEdges, allowlist, infrastructure) +
+            SourceRules.violations(sources)
 
         writeReport(parsedEdges.size, sources.size, violations)
 
@@ -72,6 +78,12 @@ abstract class ArchitectureCheckTask : DefaultTask() {
             )
         }
     }
+
+    private fun parseLines(file: File): Set<String> =
+        file.readLines()
+            .map { it.substringBefore('#').trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
 
     private fun parseAllowlist(file: File): Set<Pair<String, String>> =
         file.readLines()

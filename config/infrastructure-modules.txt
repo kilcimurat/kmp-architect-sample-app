@@ -1,0 +1,10 @@
+# Data-layer projects that are shared plumbing rather than a feature.
+#
+# An entry here removes the module's feature identity: the cross-feature rule stops applying to
+# edges touching it, so several features may share it. In exchange it must depend on no feature at
+# all, which architectureCheck enforces separately.
+#
+# Keep this list short. "It's infrastructure" is the easiest way to talk yourself out of a feature
+# boundary, which is why membership is a reviewable line in a file rather than a naming convention.
+
+:data:articlestore   # one local article store; feed writes it, article and bookmarks read it

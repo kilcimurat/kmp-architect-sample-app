@@ -82,6 +82,47 @@ class DependencyRulesTest {
         )
     }
 
+    // ---- declared infrastructure modules ----------------------------------------------------
+
+    @Test
+    fun a_feature_may_depend_on_a_declared_infrastructure_module() {
+        val violations = DependencyRules.violations(
+            edges = listOf(edge(":data:feed", ":data:articlestore")),
+            infrastructureModules = setOf(":data:articlestore"),
+        )
+
+        assertEquals(emptyList(), violations)
+    }
+
+    @Test
+    fun the_same_edge_is_a_cross_feature_violation_when_the_module_is_not_declared() {
+        assertEquals(
+            listOf("cross-feature-dependency"),
+            rulesFired(edge(":data:feed", ":data:articlestore")),
+            "the exemption must come from the declared list, not from the module's name",
+        )
+    }
+
+    @Test
+    fun an_infrastructure_module_may_not_depend_on_a_feature() {
+        val violations = DependencyRules.violations(
+            edges = listOf(edge(":data:articlestore", ":domain:feed")),
+            infrastructureModules = setOf(":data:articlestore"),
+        )
+
+        assertEquals(listOf("infrastructure-depends-on-feature"), violations.map { it.rule })
+    }
+
+    @Test
+    fun an_infrastructure_module_may_still_depend_on_core() {
+        val violations = DependencyRules.violations(
+            edges = listOf(edge(":data:articlestore", ":core:database")),
+            infrastructureModules = setOf(":data:articlestore"),
+        )
+
+        assertEquals(emptyList(), violations)
+    }
+
     // ---- fixtures consumer allowlist -------------------------------------------------------
 
     @Test

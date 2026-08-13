@@ -19,13 +19,22 @@ object DependencyRules {
         Layer.App to emptySet(),
     )
 
+    /**
+     * @param infrastructureModules data-layer projects that are shared plumbing rather than a
+     *   feature — a local store several features read, for example. They have no feature identity,
+     *   so the cross-feature rule does not apply to them, and in exchange they may not depend on any
+     *   feature at all. Declaring them explicitly keeps "it's infrastructure" from becoming the
+     *   escape hatch that dissolves the feature boundary.
+     */
     fun violations(
         edges: List<ProjectEdge>,
         apiAllowlist: Set<Pair<String, String>> = emptySet(),
+        infrastructureModules: Set<String> = emptySet(),
     ): List<Violation> = edges.flatMap { edge ->
         listOfNotNull(
             layerDirection(edge),
-            crossFeature(edge),
+            crossFeature(edge, infrastructureModules),
+            infrastructureIndependence(edge, infrastructureModules),
             fixturesConsumer(edge),
             unjustifiedApi(edge, apiAllowlist),
         )
@@ -62,7 +71,9 @@ object DependencyRules {
         )
     }
 
-    private fun crossFeature(edge: ProjectEdge): Violation? {
+    private fun crossFeature(edge: ProjectEdge, infrastructure: Set<String>): Violation? {
+        if (edge.from in infrastructure || edge.to in infrastructure) return null
+
         val fromFeature = edge.fromModule.feature ?: return null
         val toFeature = edge.toModule.feature ?: return null
         if (fromFeature == toFeature) return null
@@ -73,6 +84,25 @@ object DependencyRules {
             message = "Feature '$fromFeature' depends on feature '$toFeature'. Cross-feature " +
                 "decisions belong to app/shared; one such edge collapses the isolation claim for " +
                 "both features.",
+        )
+    }
+
+    /**
+     * The price of having no feature identity: an infrastructure module may be shared by every
+     * feature, so it must know about none of them. Without this, "infrastructure" would be a label
+     * anyone could attach to a module to smuggle a cross-feature dependency past the previous rule.
+     */
+    private fun infrastructureIndependence(edge: ProjectEdge, infrastructure: Set<String>): Violation? {
+        if (edge.from !in infrastructure) return null
+        if (edge.toModule.feature == null) return null
+        if (edge.to in infrastructure) return null
+
+        return Violation(
+            rule = "infrastructure-depends-on-feature",
+            subject = "${edge.from} -> ${edge.to} (${edge.configuration})",
+            message = "${edge.from} is declared shared infrastructure, so it may be used by any " +
+                "feature and must therefore depend on none. Move the feature-specific part into " +
+                "the feature's own data module.",
         )
     }
 

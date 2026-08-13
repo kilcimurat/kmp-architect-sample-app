@@ -22,6 +22,12 @@ class DefaultArticleRepository(
 
     override fun observeArticle(id: ArticleId): Flow<Article?> =
         local.observeById(id.value).map { record -> record?.toDomain() }
+
+    override fun observeBookmarkState(id: ArticleId): Flow<Boolean> =
+        local.observeById(id.value).map { record -> record?.bookmarked == true }
+
+    override suspend fun setBookmarked(id: ArticleId, bookmarked: Boolean) =
+        local.setBookmarked(id.value, bookmarked)
 }
 
 internal fun ArticleRecord.toDomain() = Article(

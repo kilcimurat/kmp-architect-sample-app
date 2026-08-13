@@ -7,6 +7,8 @@ import com.mkilci.kmparchitect.core.mvi.MviViewModel
 import com.mkilci.kmparchitect.core.mvi.StateStore
 import com.mkilci.kmparchitect.core.sharing.ShareResult
 import com.mkilci.kmparchitect.domain.article.ObserveArticle
+import com.mkilci.kmparchitect.domain.article.ObserveArticleBookmarkState
+import com.mkilci.kmparchitect.domain.article.SetArticleBookmarked
 import com.mkilci.kmparchitect.domain.article.ShareArticle
 import com.mkilci.kmparchitect.presentation.article.model.ArticleAction
 import com.mkilci.kmparchitect.presentation.article.model.ArticleDetailUi
@@ -21,6 +23,8 @@ class ArticleViewModel(
     stateStore: StateStore<ArticleState, ArticleEvent>,
     private val articleId: ArticleId,
     private val observeArticle: ObserveArticle,
+    private val observeBookmarkState: ObserveArticleBookmarkState,
+    private val setArticleBookmarked: SetArticleBookmarked,
     private val shareArticle: ShareArticle,
 ) : MviViewModel<ArticleState, ArticleEvent, ArticleEffect>(stateStore) {
 
@@ -37,6 +41,11 @@ class ArticleViewModel(
                 )
             }
         }
+        viewModelScope.launch {
+            observeBookmarkState(articleId).collect { isBookmarked ->
+                sendEvent(ArticleEvent.BookmarkStateChanged(isBookmarked))
+            }
+        }
     }
 
     fun onAction(action: ArticleAction) {
@@ -44,8 +53,16 @@ class ArticleViewModel(
             // Synchronous effect, straight from a ViewModel-owned method: no coroutine needed.
             ArticleAction.BackClicked -> sendEffect(ArticleEffect.NavigateBack)
             ArticleAction.ShareClicked -> share()
+            ArticleAction.BookmarkToggled -> toggleBookmark()
             ArticleAction.ShareOutcomeDismissed -> sendEvent(ArticleEvent.ShareOutcomeDismissed)
         }
+    }
+
+    // No optimistic state write: the flag is stored, and the observed bookmark state is what
+    // updates the screen. One source of truth, exactly as with the article itself.
+    private fun toggleBookmark() {
+        val target = !state.value.isBookmarked
+        viewModelScope.launch { setArticleBookmarked(articleId, target) }
     }
 
     private fun share() {

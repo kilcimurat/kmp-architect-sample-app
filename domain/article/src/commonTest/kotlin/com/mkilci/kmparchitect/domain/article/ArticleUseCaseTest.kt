@@ -6,6 +6,7 @@ import com.mkilci.kmparchitect.core.sharing.ShareRequest
 import com.mkilci.kmparchitect.core.sharing.ShareResult
 import com.mkilci.kmparchitect.core.sharing.Sharer
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -22,8 +23,18 @@ private val sample = Article(
     publishedAtEpochMillis = 1_000,
 )
 
-private class StubArticleRepository(private val article: Article?) : ArticleRepository {
+private class StubArticleRepository(
+    private val article: Article?,
+    initiallyBookmarked: Boolean = false,
+) : ArticleRepository {
+
+    private val bookmarked = MutableStateFlow(initiallyBookmarked)
+
     override fun observeArticle(id: ArticleId): Flow<Article?> = flowOf(article)
+    override fun observeBookmarkState(id: ArticleId): Flow<Boolean> = bookmarked
+    override suspend fun setBookmarked(id: ArticleId, bookmarked: Boolean) {
+        this.bookmarked.value = bookmarked
+    }
 }
 
 private class StubSharer(private val result: ShareResult) : Sharer {

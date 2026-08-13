@@ -14,6 +14,8 @@ val articlePresentationModule: Module = module {
             stateStore = DefaultStateStore(ArticleState()),
             articleId = ArticleId(articleId),
             observeArticle = get(),
+            observeBookmarkState = get(),
+            setArticleBookmarked = get(),
             shareArticle = get(),
         )
     }

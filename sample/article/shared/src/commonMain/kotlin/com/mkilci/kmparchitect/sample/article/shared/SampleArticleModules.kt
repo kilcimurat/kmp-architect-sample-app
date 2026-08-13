@@ -4,6 +4,8 @@ import com.mkilci.kmparchitect.core.sharing.ShareResult
 import com.mkilci.kmparchitect.core.sharing.Sharer
 import com.mkilci.kmparchitect.domain.article.ArticleRepository
 import com.mkilci.kmparchitect.domain.article.ObserveArticle
+import com.mkilci.kmparchitect.domain.article.ObserveArticleBookmarkState
+import com.mkilci.kmparchitect.domain.article.SetArticleBookmarked
 import com.mkilci.kmparchitect.domain.article.ShareArticle
 import com.mkilci.kmparchitect.fixtures.article.FakeArticleRepository
 import com.mkilci.kmparchitect.fixtures.article.RecordingSharer
@@ -26,6 +28,8 @@ fun sampleArticleModules(shareResult: ShareResult = ShareResult.Shared): List<Mo
         single<ArticleRepository> { FakeArticleRepository() }
         single<Sharer> { RecordingSharer(shareResult) }
         factory { ObserveArticle(get()) }
+        factory { ObserveArticleBookmarkState(get()) }
+        factory { SetArticleBookmarked(get()) }
         factory { ShareArticle(get()) }
     },
     articlePresentationModule,

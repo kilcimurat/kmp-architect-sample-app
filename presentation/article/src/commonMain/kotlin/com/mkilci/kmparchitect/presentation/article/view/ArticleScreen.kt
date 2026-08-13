@@ -44,6 +44,10 @@ fun ArticleScreen(
             Text(state.article.summary, style = MaterialTheme.typography.bodyLarge)
             Text(state.article.url, style = MaterialTheme.typography.bodySmall)
 
+            Button(onClick = { onAction(ArticleAction.BookmarkToggled) }) {
+                Text(if (state.isBookmarked) "Remove bookmark" else "Bookmark")
+            }
+
             Button(onClick = { onAction(ArticleAction.ShareClicked) }) { Text("Share") }
 
             state.shareOutcome?.let { outcome ->

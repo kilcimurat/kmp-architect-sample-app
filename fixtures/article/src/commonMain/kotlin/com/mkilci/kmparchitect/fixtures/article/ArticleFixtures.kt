@@ -40,12 +40,21 @@ object ArticleFixtures {
 
 class FakeArticleRepository(
     articles: List<Article> = ArticleFixtures.all,
+    bookmarked: Set<ArticleId> = emptySet(),
 ) : ArticleRepository {
 
     private val stored = MutableStateFlow(articles)
+    private val bookmarkedIds = MutableStateFlow(bookmarked)
 
     override fun observeArticle(id: ArticleId): Flow<Article?> =
         stored.map { articles -> articles.find { it.id == id } }
+
+    override fun observeBookmarkState(id: ArticleId): Flow<Boolean> =
+        bookmarkedIds.map { ids -> id in ids }
+
+    override suspend fun setBookmarked(id: ArticleId, bookmarked: Boolean) {
+        bookmarkedIds.value = if (bookmarked) bookmarkedIds.value + id else bookmarkedIds.value - id
+    }
 }
 
 /**

@@ -31,5 +31,17 @@ class KmpFrameworkConventionPlugin : Plugin<Project> {
                 }
             }
         }
+
+        // Swift `import <name>` has to match this exactly, and on Linux the link task is silently
+        // skipped, so a wrong name would only surface on someone's Mac. This makes the derived name
+        // inspectable from any machine.
+        val projectPath = path
+        tasks.register("printFrameworkName") {
+            group = "help"
+            description = "Prints the Apple framework base name this project exports."
+            val name = configuredName
+            doLast { println("$projectPath -> ${name.get()}") }
+        }
+        Unit
     }
 }

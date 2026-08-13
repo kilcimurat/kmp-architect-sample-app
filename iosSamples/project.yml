@@ -1,0 +1,77 @@
+name: KmpArchitectSamples
+
+# One project, one executable target per feature sample.
+#
+# A framework that merely links is not an iOS sample: you cannot look at it, tap it, or see whether
+# the fixtures render. Each target below is a real app you can run on a simulator, and they share
+# the Swift host code so adding a feature does not mean copying boilerplate.
+
+options:
+  bundleIdPrefix: com.mkilci.kmparchitect.sample
+  deploymentTarget:
+    iOS: "18.2"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    LD_RUNPATH_SEARCH_PATHS:
+      - $(inherited)
+      - "@executable_path/Frameworks"
+
+targetTemplates:
+  FeatureSample:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/Shared
+      - path: Sources/${feature}
+    info:
+      path: Supporting/${feature}-Info.plist
+      properties:
+        CFBundleDisplayName: ${displayName}
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mkilci.kmparchitect.sample.${gradleFeature}
+    preBuildScripts:
+      - name: Compile Kotlin Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "YES" = "$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+            echo "Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \"YES\""
+            exit 0
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :sample:${gradleFeature}:shared:embedAndSignAppleFrameworkForXcode
+
+targets:
+  FeedSample:
+    templates: [FeatureSample]
+    templateAttributes:
+      feature: Feed
+      gradleFeature: feed
+      displayName: Feed Sample
+
+  ArticleSample:
+    templates: [FeatureSample]
+    templateAttributes:
+      feature: Article
+      gradleFeature: article
+      displayName: Article Sample
+
+  BookmarksSample:
+    templates: [FeatureSample]
+    templateAttributes:
+      feature: Bookmarks
+      gradleFeature: bookmarks
+      displayName: Bookmarks Sample

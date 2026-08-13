@@ -1,0 +1,55 @@
+name: KmpArchitectSampleApp
+
+options:
+  bundleIdPrefix: com.mkilci.kmparchitect
+  deploymentTarget:
+    iOS: "18.2"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # The Gradle framework task writes into the build directory, which sandboxed
+    # script phases cannot do.
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  KmpArchitectSampleApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    configFiles:
+      Debug: Configuration/Config.xcconfig
+      Release: Configuration/Config.xcconfig
+    info:
+      path: Supporting/Info.plist
+      properties:
+        CFBundleDisplayName: KMP Architect
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/Frameworks"
+    preBuildScripts:
+      # Mirrors the JetBrains KMP template: link the framework for the SDK and
+      # architecture Xcode asked for, then embed and sign it. Paths are
+      # repository-relative so this works on any machine.
+      - name: Compile Kotlin Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "YES" = "$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+            echo "Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \"YES\""
+            exit 0
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :app:shared:embedAndSignAppleFrameworkForXcode

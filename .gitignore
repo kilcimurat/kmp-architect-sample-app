@@ -17,3 +17,9 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Xcode projects are generated from project.yml by scripts/generate-xcode-projects.sh
+/iosApp/*.xcodeproj
+/iosSamples/*.xcodeproj
+/iosApp/Supporting/Info.plist
+/iosSamples/Supporting/*-Info.plist

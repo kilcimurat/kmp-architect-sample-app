@@ -5,6 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
@@ -60,6 +61,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         // stores only immutable strings on the tasks.
         target.gradle.projectsEvaluated {
             val edges = mutableListOf<String>()
+            val externalEdges = mutableListOf<String>()
             val sourceRoots = mutableListOf<String>()
             val sourceDirs = mutableListOf<File>()
 
@@ -67,10 +69,22 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 if (project == target) return@forEach
 
                 project.configurations.forEach { configuration ->
+                    // KMP synthesizes this lock-file metadata bucket from other projects' source
+                    // sets. Its contents are not dependencies declared by this project and treating
+                    // them as direct edges produces false app -> test-fixtures violations.
+                    if (configuration.name == "swiftPMDependenciesForLockFilesMetadataClasspathDependencies") {
+                        return@forEach
+                    }
                     configuration.dependencies
                         .filterIsInstance<ProjectDependency>()
                         .forEach { dependency ->
                             edges += "${project.path}|${dependency.path}|${configuration.name}"
+                        }
+                    configuration.dependencies
+                        .filterIsInstance<ExternalModuleDependency>()
+                        .forEach { dependency ->
+                            val group = dependency.group ?: return@forEach
+                            externalEdges += "${project.path}|$group:${dependency.name}|${configuration.name}"
                         }
                 }
 
@@ -83,6 +97,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
 
             architectureCheck.configure {
                 this.edges.set(edges.distinct().sorted())
+                this.externalEdges.set(externalEdges.distinct().sorted())
                 this.sourceRoots.set(sourceRoots.sorted())
                 this.sourceFiles.setFrom(sourceDirs)
             }
@@ -95,30 +110,61 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         root: Project,
         aggregate: TaskProvider<Task>,
     ) {
-        val sampleHosts = root.allprojects.filter { project ->
+        // A sample is isolated on both platforms or on neither. The Android graph is resolved from
+        // the executable that a developer installs; the iOS graph from the framework module that
+        // Xcode embeds. Same allowlist, two roots.
+        sampleModules(root, leaf = ANDROID_HOST).forEach { (feature, project) ->
+            registerIsolationCheck(root, aggregate, feature, project, ANDROID, ANDROID_CONFIGURATION)
+        }
+        sampleModules(root, leaf = IOS_FRAMEWORK).forEach { (feature, project) ->
+            registerIsolationCheck(root, aggregate, feature, project, IOS, IOS_CONFIGURATION)
+        }
+    }
+
+    private fun sampleModules(root: Project, leaf: String): List<Pair<String, Project>> =
+        root.allprojects.mapNotNull { project ->
             val segments = project.path.split(":").filter(String::isNotBlank)
-            segments.size == 3 && segments[0] == "sample" && segments[2] == "androidApp"
-        }
-
-        sampleHosts.forEach { host ->
-            val feature = host.path.split(":")[2]
-            val allowlist = root.layout.projectDirectory.file("sample/$feature/isolation-allowlist.txt")
-            val configuration = host.configurations.findByName(RESOLVED_CONFIGURATION) ?: return@forEach
-
-            val task = root.tasks.register<IsolationCheckTask>("isolationCheck${feature.replaceFirstChar { it.uppercaseChar() }}") {
-                group = "verification"
-                description = "Checks the resolved graph of ${host.path} against its allowlist."
-                samplePath.set(host.path)
-                configurationName.set(RESOLVED_CONFIGURATION)
-                allowlistFile.set(allowlist)
-                allowlistDisplayPath.set("sample/$feature/isolation-allowlist.txt")
-                forbiddenModulePrefixes.set(forbiddenSampleModulePrefixes)
-                resolvedProjects.set(configuration.projectNodes())
-                resolvedModules.set(configuration.moduleNodes())
-                report.set(root.layout.buildDirectory.file("reports/architecture/isolation-$feature.txt"))
+            if (segments.size == 3 && segments[0] == "sample" && segments[2] == leaf) {
+                segments[1] to project
+            } else {
+                null
             }
-            aggregate.configure { dependsOn(task) }
         }
+
+    private fun registerIsolationCheck(
+        root: Project,
+        aggregate: TaskProvider<Task>,
+        feature: String,
+        sample: Project,
+        platform: String,
+        configurationName: String,
+    ) {
+        // A missing configuration must not silently drop the gate: a check that quietly stops
+        // running is worse than no check, because the report still says the sample is isolated.
+        val configuration = sample.configurations.findByName(configurationName)
+            ?: error(
+                "isolationCheck cannot resolve '$configurationName' on ${sample.path}. " +
+                    "The $platform gate would silently stop running; fix the configuration name.",
+            )
+
+        val taskName = "isolationCheck" +
+            feature.replaceFirstChar { it.uppercaseChar() } +
+            platform.replaceFirstChar { it.uppercaseChar() }
+
+        val task = root.tasks.register<IsolationCheckTask>(taskName) {
+            group = "verification"
+            description = "Checks the resolved $platform graph of ${sample.path} against its allowlist."
+            samplePath.set(sample.path)
+            this.configurationName.set(configurationName)
+            this.platform.set(platform)
+            allowlistFile.set(root.layout.projectDirectory.file("sample/$feature/isolation-allowlist.txt"))
+            allowlistDisplayPath.set("sample/$feature/isolation-allowlist.txt")
+            forbiddenModulePrefixes.set(forbiddenSampleModulePrefixes)
+            resolvedProjects.set(configuration.projectNodes())
+            resolvedModules.set(configuration.moduleNodes())
+            report.set(root.layout.buildDirectory.file("reports/architecture/isolation-$feature-$platform.txt"))
+        }
+        aggregate.configure { dependsOn(task) }
     }
 
     private fun Configuration.projectNodes() =
@@ -148,7 +194,22 @@ class ArchitectureConventionPlugin : Plugin<Project> {
     }
 
     private companion object {
+        const val ANDROID = "android"
+        const val IOS = "ios"
+
+        const val ANDROID_HOST = "androidApp"
+        const val IOS_FRAMEWORK = "shared"
+
         /** The daily-loop artifact: what a feature developer actually installs. */
-        const val RESOLVED_CONFIGURATION = "debugRuntimeClasspath"
+        const val ANDROID_CONFIGURATION = "debugRuntimeClasspath"
+
+        /**
+         * What actually compiles into the static framework Xcode embeds.
+         *
+         * Only the simulator target is resolved: both iOS targets are fed by the same `iosMain`
+         * source set here, so `iosArm64` resolves the same projects and a second task would be
+         * duplication. Add it the day a target-specific source set appears.
+         */
+        const val IOS_CONFIGURATION = "iosSimulatorArm64CompileKlibraries"
     }
 }

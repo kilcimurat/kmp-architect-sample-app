@@ -1,6 +1,7 @@
 package com.mkilci.kmparchitect.buildlogic
 
 import com.mkilci.kmparchitect.buildlogic.rules.DependencyRules
+import com.mkilci.kmparchitect.buildlogic.rules.ExternalEdge
 import com.mkilci.kmparchitect.buildlogic.rules.ProjectEdge
 import com.mkilci.kmparchitect.buildlogic.rules.SourceFile
 import com.mkilci.kmparchitect.buildlogic.rules.SourceRules
@@ -33,6 +34,10 @@ abstract class ArchitectureCheckTask : DefaultTask() {
     @get:Input
     abstract val edges: ListProperty<String>
 
+    /** `from|group:name|configuration`, one declared external dependency each. */
+    @get:Input
+    abstract val externalEdges: ListProperty<String>
+
     /** `projectPath|absoluteSourceRoot`. */
     @get:Input
     abstract val sourceRoots: ListProperty<String>
@@ -58,14 +63,23 @@ abstract class ArchitectureCheckTask : DefaultTask() {
             val (from, to, configuration) = line.split('|')
             ProjectEdge(from, to, configuration)
         }
+        val parsedExternalEdges = externalEdges.get().map { line ->
+            val (from, coordinate, configuration) = line.split('|')
+            ExternalEdge(from, coordinate, configuration)
+        }
         val allowlist = parseAllowlist(apiAllowlist.get().asFile)
         val infrastructure = parseLines(infrastructureModules.get().asFile)
         val sources = readSources()
 
-        val violations = DependencyRules.violations(parsedEdges, allowlist, infrastructure) +
+        val violations = DependencyRules.violations(
+            edges = parsedEdges,
+            apiAllowlist = allowlist,
+            infrastructureModules = infrastructure,
+            externalEdges = parsedExternalEdges,
+        ) +
             SourceRules.violations(sources)
 
-        writeReport(parsedEdges.size, sources.size, violations)
+        writeReport(parsedEdges.size, parsedExternalEdges.size, sources.size, violations)
 
         if (violations.isNotEmpty()) {
             val byRule = violations.groupBy { it.rule }
@@ -113,13 +127,19 @@ abstract class ArchitectureCheckTask : DefaultTask() {
             .toList()
     }
 
-    private fun writeReport(edgeCount: Int, sourceCount: Int, violations: List<Violation>) {
+    private fun writeReport(
+        projectEdgeCount: Int,
+        externalEdgeCount: Int,
+        sourceCount: Int,
+        violations: List<Violation>,
+    ) {
         val file = report.get().asFile
         file.parentFile.mkdirs()
         file.writeText(
             buildString {
                 appendLine("architectureCheck")
-                appendLine("edges inspected:   $edgeCount")
+                appendLine("project edges inspected:  $projectEdgeCount")
+                appendLine("external edges inspected: $externalEdgeCount")
                 appendLine("sources inspected: $sourceCount")
                 appendLine("violations:        ${violations.size}")
                 if (violations.isNotEmpty()) {

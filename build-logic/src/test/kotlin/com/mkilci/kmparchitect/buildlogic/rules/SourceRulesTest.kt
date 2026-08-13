@@ -42,6 +42,20 @@ class SourceRulesTest {
     }
 
     @Test
+    fun data_may_not_import_navigation_or_ui_state() {
+        assertTrue(
+            "forbidden-import" in rulesFired(
+                file(":data:feed", content = "import androidx.navigation.NavController\n"),
+            ),
+        )
+        assertTrue(
+            "forbidden-import" in rulesFired(
+                file(":data:feed", content = "import com.mkilci.kmparchitect.presentation.feed.model.FeedState\n"),
+            ),
+        )
+    }
+
+    @Test
     fun core_may_not_import_a_feature() {
         assertTrue(
             "forbidden-import" in rulesFired(
@@ -53,6 +67,20 @@ class SourceRulesTest {
     @Test
     fun fixtures_may_not_perform_real_io() {
         assertTrue("forbidden-import" in rulesFired(file(":fixtures:feed", content = "import io.ktor.client.HttpClient\n")))
+    }
+
+    @Test
+    fun fixtures_may_not_read_implicit_time_or_randomness() {
+        assertTrue(
+            "forbidden-import" in rulesFired(
+                file(":fixtures:feed", content = "import kotlin.time.Clock\n"),
+            ),
+        )
+        assertTrue(
+            "forbidden-import" in rulesFired(
+                file(":fixtures:feed", content = "import kotlin.random.Random\n"),
+            ),
+        )
     }
 
     @Test
@@ -84,6 +112,47 @@ class SourceRulesTest {
         """.trimIndent()
 
         assertTrue("viewmodel-holds-navigator" in rulesFired(file(":presentation:feed", content = content)))
+    }
+
+    @Test
+    fun a_viewmodel_holding_an_activity_or_uiviewcontroller_is_rejected() {
+        val android = """
+            import android.app.Activity
+            class FeedViewModel(private val activity: Activity) :
+                MviViewModel<FeedState, FeedEvent, FeedEffect>(store)
+        """.trimIndent()
+        val ios = """
+            import platform.UIKit.UIViewController
+            class FeedViewModel(private val controller: UIViewController) :
+                MviViewModel<FeedState, FeedEvent, FeedEffect>(store)
+        """.trimIndent()
+
+        assertTrue("viewmodel-holds-navigator" in rulesFired(file(":presentation:feed", content = android)))
+        assertTrue("viewmodel-holds-navigator" in rulesFired(file(":presentation:feed", content = ios)))
+    }
+
+    @Test
+    fun a_composable_may_not_resolve_a_repository_from_koin() {
+        val content = """
+            @Composable
+            fun FeedRoute() {
+                val repository = getKoin().get<FeedRepository>()
+            }
+        """.trimIndent()
+
+        assertTrue("composable-repository-lookup" in rulesFired(file(":presentation:feed", content = content)))
+    }
+
+    @Test
+    fun an_effect_may_not_be_emitted_from_global_scope() {
+        val content = """
+            import kotlinx.coroutines.GlobalScope
+            class FeedViewModel : MviViewModel<FeedState, FeedEvent, FeedEffect>(store) {
+                fun load() { GlobalScope.launch { sendEffect(FeedEffect.Done) } }
+            }
+        """.trimIndent()
+
+        assertTrue("unowned-effect-scope" in rulesFired(file(":presentation:feed", content = content)))
     }
 
     @Test

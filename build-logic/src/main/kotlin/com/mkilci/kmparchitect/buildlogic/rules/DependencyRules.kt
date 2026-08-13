@@ -6,6 +6,27 @@ package com.mkilci.kmparchitect.buildlogic.rules
  */
 object DependencyRules {
 
+    private val domainForbiddenExternalPrefixes = setOf(
+        "androidx.",
+        "org.jetbrains.androidx.lifecycle:",
+        "org.jetbrains.compose:",
+        "io.insert-koin:",
+        "io.ktor:",
+        "app.cash.sqldelight:",
+        "org.jetbrains.kotlinx:kotlinx-serialization",
+    )
+
+    private val dataForbiddenExternalPrefixes = setOf(
+        "org.jetbrains.androidx.navigation:",
+        "org.jetbrains.compose:",
+    )
+
+    private val fixturesForbiddenExternalPrefixes = setOf(
+        "io.ktor:",
+        "app.cash.sqldelight:",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json",
+    )
+
     /** Layers a given layer may never depend on, in any configuration. */
     private val forbiddenTargets: Map<Layer, Set<Layer>> = mapOf(
         Layer.Core to setOf(Layer.Domain, Layer.Data, Layer.Presentation, Layer.Fixtures, Layer.Sample, Layer.App),
@@ -30,15 +51,22 @@ object DependencyRules {
         edges: List<ProjectEdge>,
         apiAllowlist: Set<Pair<String, String>> = emptySet(),
         infrastructureModules: Set<String> = emptySet(),
-    ): List<Violation> = edges.flatMap { edge ->
-        listOfNotNull(
-            layerDirection(edge),
-            crossFeature(edge, infrastructureModules),
-            infrastructureIndependence(edge, infrastructureModules),
-            fixturesConsumer(edge),
-            unjustifiedApi(edge, apiAllowlist),
-        )
-    }
+        externalEdges: List<ExternalEdge> = emptyList(),
+    ): List<Violation> =
+        edges.flatMap { edge ->
+            listOfNotNull(
+                layerDirection(edge),
+                crossFeature(edge, infrastructureModules),
+                infrastructureIndependence(edge, infrastructureModules),
+                fixturesConsumer(edge),
+                unjustifiedApi(edge, apiAllowlist),
+            )
+        } + externalEdges.flatMap { edge ->
+            listOfNotNull(
+                forbiddenExternal(edge),
+                unjustifiedExternalApi(edge, apiAllowlist),
+            )
+        }
 
     private fun layerDirection(edge: ProjectEdge): Violation? {
         val from = edge.fromModule
@@ -155,6 +183,42 @@ object DependencyRules {
             message = "An `api` edge re-exports this dependency, so every consumer recompiles when " +
                 "its ABI changes. Use `implementation`, or add the pair to config/api-allowlist.txt " +
                 "with the reason it is part of this module's own API.",
+        )
+    }
+
+    private fun forbiddenExternal(edge: ExternalEdge): Violation? {
+        if (edge.isTestOnly) return null
+
+        val forbidden = when (edge.fromModule.layer) {
+            Layer.Domain -> domainForbiddenExternalPrefixes
+            Layer.Data -> dataForbiddenExternalPrefixes
+            Layer.Fixtures -> fixturesForbiddenExternalPrefixes
+            else -> emptySet()
+        }
+        val marker = forbidden.firstOrNull(edge.coordinate::startsWith) ?: return null
+
+        return Violation(
+            rule = "forbidden-external-dependency",
+            subject = "${edge.from} -> ${edge.coordinate} (${edge.configuration})",
+            message = "${edge.fromModule.layer} may not declare external dependency '$marker' in production sources.",
+        )
+    }
+
+    private fun unjustifiedExternalApi(
+        edge: ExternalEdge,
+        allowlist: Set<Pair<String, String>>,
+    ): Violation? {
+        if (!edge.isApi || edge.isTestOnly) return null
+        // Kotlin plugins add the standard library to executable `api` configurations implicitly.
+        // It is toolchain wiring, not a user-selected ABI re-export.
+        if (edge.coordinate == "org.jetbrains.kotlin:kotlin-stdlib") return null
+        if (edge.from to edge.coordinate in allowlist) return null
+
+        return Violation(
+            rule = "unjustified-api-dependency",
+            subject = "${edge.from} -> ${edge.coordinate} (${edge.configuration})",
+            message = "An external `api` edge also widens the compile ABI. Use `implementation`, " +
+                "or record the exposed coordinate in config/api-allowlist.txt with its reason.",
         )
     }
 }

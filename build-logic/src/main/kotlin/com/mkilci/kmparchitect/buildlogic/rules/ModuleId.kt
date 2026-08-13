@@ -71,6 +71,17 @@ data class ProjectEdge(
     val isTestOnly: Boolean = configuration.contains("Test")
 }
 
+/** One declared external module dependency, before resolution. */
+data class ExternalEdge(
+    val from: String,
+    val coordinate: String,
+    val configuration: String,
+) {
+    val fromModule: ModuleId get() = ModuleId(from)
+    val isApi: Boolean = configuration == "api" || configuration.endsWith("Api")
+    val isTestOnly: Boolean = configuration.contains("Test")
+}
+
 data class Violation(
     val rule: String,
     val subject: String,

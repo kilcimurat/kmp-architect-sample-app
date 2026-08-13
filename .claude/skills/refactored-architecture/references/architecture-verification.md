@@ -130,7 +130,7 @@ outside the list:
 
 ```text
 isolationCheck FAILED
-  :sample:bookmarks:androidApp (debugRuntimeClasspath)
+  android: :sample:bookmarks:androidApp (debugRuntimeClasspath)
     unexpected project on the resolved graph: :data:bookmarks
     allowlist: sample/bookmarks/isolation-allowlist.txt
 ```
@@ -138,6 +138,24 @@ isolationCheck FAILED
 Widening a sample then becomes a reviewable diff to that file rather than an invisible regression.
 Fail on unexpected entries; also report allowlist lines that no longer resolve, so the list cannot
 rot into permanent over-permission.
+
+Run the gate once per platform. The Android graph comes from the executable's runtime classpath, the
+Apple graph from the framework module's klib compile classpath — different roots, different
+configuration types, and an Android-only check says nothing about what the framework links. Exclude
+each root from its own graph so one allowlist covers both and any divergence between the platforms
+surfaces as an unexpected or stale entry:
+
+```text
+isolationCheck FAILED
+  ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)
+    unexpected project on the resolved graph: :core:database
+    unexpected project on the resolved graph: :data:feed
+    forbidden external dependency reached the sample: app.cash.sqldelight:native-driver
+    allowlist: sample/feed/isolation-allowlist.txt
+```
+
+The Apple gate resolves dependency metadata rather than invoking the Apple toolchain, so it is one
+of the few iOS checks that stays valid on a Linux host.
 
 Choose a concrete resolvable compile/runtime classpath rather than assuming isolation from folder
 shape. Examples vary by plugin version:
@@ -181,6 +199,10 @@ contributor that a sample grew before anyone waits on a full application build.
 Android sample jobs assemble every executable. Add emulator install/launch only when CI provides a
 stable emulator. iOS sample jobs must build native Xcode targets; framework linking alone is
 insufficient. Use simulator destinations and disable signing for ordinary pull requests.
+
+When CI or local validation launches a Compose iOS app, verify the process survives initial render.
+Require `CADisableMinimumFrameDurationOnPhone = true` in every production/sample Info.plist source;
+otherwise Compose's strict plist check may abort after a successful build, install, and launch command.
 
 Keep CI commands identical to local commands when possible. Generate Xcode projects from authoritative
 specs before building when the repository uses a generator.

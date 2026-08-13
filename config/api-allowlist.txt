@@ -16,3 +16,9 @@
 :fixtures:feed -> :domain:feed          # FakeFeedRepository implements FeedRepository
 :fixtures:article -> :domain:article    # FakeArticleRepository implements ArticleRepository
 :fixtures:bookmarks -> :domain:bookmarks # FakeBookmarkRepository implements BookmarkRepository
+
+# External API types intentionally exposed in public signatures.
+:core:database -> app.cash.sqldelight:runtime # DatabaseDriverFactory exposes SqlDriver and SqlSchema
+:core:mvi -> org.jetbrains.androidx.lifecycle:lifecycle-viewmodel # MviViewModel extends ViewModel
+:core:network -> io.ktor:ktor-client-core # HttpClientFactory accepts and returns Ktor public types
+:data:articlestore -> app.cash.sqldelight:runtime # generated ArticleDatabase API exposes SQLDelight runtime types

@@ -16,6 +16,12 @@ class DependencyRulesTest {
     private fun rulesFired(vararg edges: ProjectEdge): List<String> =
         DependencyRules.violations(edges.toList()).map { it.rule }
 
+    private fun external(
+        from: String,
+        coordinate: String,
+        configuration: String = "commonMainImplementation",
+    ) = ExternalEdge(from, coordinate, configuration)
+
     // ---- forbidden directions -------------------------------------------------------------
 
     @Test
@@ -60,6 +66,56 @@ class DependencyRulesTest {
     @Test
     fun fixtures_may_not_depend_on_data() {
         assertTrue("forbidden-layer-dependency" in rulesFired(edge(":fixtures:feed", ":data:feed")))
+    }
+
+    @Test
+    fun domain_may_not_declare_external_framework_dependencies_even_when_unused() {
+        val forbidden = listOf(
+            "io.insert-koin:koin-core",
+            "io.ktor:ktor-client-core",
+            "app.cash.sqldelight:runtime",
+            "org.jetbrains.compose:runtime",
+            "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel",
+            "org.jetbrains.kotlinx:kotlinx-serialization-json",
+        )
+
+        forbidden.forEach { coordinate ->
+            val violations = DependencyRules.violations(
+                edges = emptyList(),
+                externalEdges = listOf(external(":domain:feed", coordinate)),
+            )
+            assertTrue(
+                "forbidden-external-dependency" in violations.map { it.rule },
+                "$coordinate should be rejected from Domain",
+            )
+        }
+    }
+
+    @Test
+    fun data_may_not_declare_compose_or_navigation_dependencies() {
+        val violations = DependencyRules.violations(
+            edges = emptyList(),
+            externalEdges = listOf(
+                external(":data:feed", "org.jetbrains.compose:runtime"),
+                external(":data:feed", "org.jetbrains.androidx.navigation:navigation-compose"),
+            ),
+        )
+
+        assertEquals(2, violations.count { it.rule == "forbidden-external-dependency" })
+    }
+
+    @Test
+    fun fixtures_may_not_declare_production_io_dependencies() {
+        val violations = DependencyRules.violations(
+            edges = emptyList(),
+            externalEdges = listOf(
+                external(":fixtures:feed", "io.ktor:ktor-client-core"),
+                external(":fixtures:feed", "app.cash.sqldelight:runtime"),
+                external(":fixtures:feed", "org.jetbrains.kotlinx:kotlinx-serialization-json"),
+            ),
+        )
+
+        assertEquals(3, violations.count { it.rule == "forbidden-external-dependency" })
     }
 
     // ---- cross-feature --------------------------------------------------------------------
@@ -169,6 +225,43 @@ class DependencyRulesTest {
         val violations = DependencyRules.violations(
             edges = listOf(edge(":domain:feed", ":core:model", "commonMainApi")),
             apiAllowlist = setOf(":domain:feed" to ":core:model"),
+        )
+
+        assertEquals(emptyList(), violations)
+    }
+
+    @Test
+    fun an_external_api_edge_outside_the_allowlist_is_rejected() {
+        val violations = DependencyRules.violations(
+            edges = emptyList(),
+            externalEdges = listOf(
+                external(":core:network", "io.ktor:ktor-client-core", "commonMainApi"),
+            ),
+        )
+
+        assertEquals(listOf("unjustified-api-dependency"), violations.map { it.rule })
+    }
+
+    @Test
+    fun an_allowlisted_external_api_edge_passes() {
+        val violations = DependencyRules.violations(
+            edges = emptyList(),
+            apiAllowlist = setOf(":core:network" to "io.ktor:ktor-client-core"),
+            externalEdges = listOf(
+                external(":core:network", "io.ktor:ktor-client-core", "commonMainApi"),
+            ),
+        )
+
+        assertEquals(emptyList(), violations)
+    }
+
+    @Test
+    fun plugin_injected_kotlin_stdlib_api_is_not_treated_as_an_architecture_choice() {
+        val violations = DependencyRules.violations(
+            edges = emptyList(),
+            externalEdges = listOf(
+                external(":app:android", "org.jetbrains.kotlin:kotlin-stdlib", "api"),
+            ),
         )
 
         assertEquals(emptyList(), violations)

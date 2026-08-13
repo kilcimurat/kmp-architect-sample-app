@@ -322,6 +322,14 @@ compare them to the allowlist declared for that sample. Fail on any extra projec
 Folder shape and declared edges are not evidence; a resolved graph is. Keep the allowlist in the
 repository next to the sample so widening it is a reviewable diff rather than a silent regression.
 
+Resolve **one graph per platform**, not one per sample. The two graphs have different roots — the
+Android executable and the Apple framework module — and only the Android one is a runtime classpath;
+the Apple side is a compile-time klib graph. Checking a single platform leaves the other free to
+reach a data module, because a static framework links whatever reaches it just as an APK packages
+it. One allowlist can serve both if each root is excluded from its own graph, which also asserts
+that the two platforms resolve the same projects. Where several Apple targets share one source set,
+resolving one of them is sufficient; add the others when a target-specific source set appears.
+
 The check must inspect declared project/external dependencies and source-level platform/controller
 imports where Gradle metadata is insufficient. Locate actual `override fun reduce(...)` bodies rather
 than relying on `*Event.kt` or `*Reducer.kt` filenames. Add unit tests proving important forbidden and
@@ -345,7 +353,10 @@ Discover actual task paths first, then run equivalents of:
 
 For at least two isolated samples, build Android application and iOS shared framework, then build the
 native Xcode sample schemes. When simulator/emulator access exists, install and launch them and inspect
-visible fake data, state changes, effects, back behavior, DI startup, and resources.
+visible fake data, state changes, effects, back behavior, DI startup, and resources. For every Compose
+iOS executable, require `CADisableMinimumFrameDurationOnPhone = true` in the authoritative Info.plist
+or project-generator spec; a successful install followed by an immediate process exit is a failed
+runtime gate, so check process survival/logs before interacting with the UI.
 
 ## Review checklist
 

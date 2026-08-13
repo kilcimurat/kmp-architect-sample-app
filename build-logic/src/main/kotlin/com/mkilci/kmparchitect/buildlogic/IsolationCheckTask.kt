@@ -1,5 +1,7 @@
 package com.mkilci.kmparchitect.buildlogic
 
+import com.mkilci.kmparchitect.buildlogic.rules.IsolationRules
+import com.mkilci.kmparchitect.buildlogic.rules.IsolationVerdict
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
@@ -20,6 +22,11 @@ import org.gradle.api.tasks.TaskAction
  *
  * Widening a sample then becomes a diff to `isolation-allowlist.txt` that a reviewer sees, instead
  * of a silent regression that only shows up as a slower build months later.
+ *
+ * One instance runs per sample **per platform**: the Android graph comes from the executable's
+ * runtime classpath, the iOS graph from the framework module's klib compile classpath. Checking only
+ * one platform would leave the other free to pull in a data module — a static framework links whatever
+ * reaches it just as happily as an APK packages it.
  */
 abstract class IsolationCheckTask : DefaultTask() {
 
@@ -28,6 +35,10 @@ abstract class IsolationCheckTask : DefaultTask() {
 
     @get:Input
     abstract val configurationName: Property<String>
+
+    /** Which platform's graph this instance resolves, for reports and failure messages. */
+    @get:Input
+    abstract val platform: Property<String>
 
     /** Every `project(...)` node on the resolved graph, root included. */
     @get:Input
@@ -57,67 +68,43 @@ abstract class IsolationCheckTask : DefaultTask() {
 
     @TaskAction
     fun check() {
-        val allowlistPath = allowlistFile.get().asFile
-        val allowed = allowlistPath.readLines()
-            .map { it.substringBefore('#').trim() }
-            .filter { it.isNotEmpty() }
-            .toSet()
-
         val root = samplePath.get()
-        val actual = resolvedProjects.get() - root
-        val unexpected = (actual - allowed).sorted()
-        val stale = (allowed - actual).sorted()
+        val verdict = IsolationRules.evaluate(
+            rootPath = root,
+            resolvedProjects = resolvedProjects.get(),
+            resolvedModules = resolvedModules.get(),
+            allowlist = IsolationRules.parseAllowlist(allowlistFile.get().asFile.readLines()),
+            forbiddenModulePrefixes = forbiddenModulePrefixes.get(),
+        )
 
-        val forbiddenExternals = resolvedModules.get()
-            .filter { module -> forbiddenModulePrefixes.get().any { module.startsWith(it) } }
-            .sorted()
+        writeReport(root, verdict)
 
-        writeReport(root, actual.sorted(), unexpected, stale, forbiddenExternals)
-
-        val problems = buildList {
-            unexpected.forEach {
-                add("unexpected project on the resolved graph: $it")
-            }
-            forbiddenExternals.forEach {
-                add("forbidden external dependency reached the sample: $it")
-            }
-            stale.forEach {
-                add("allowlist entry no longer on the graph (remove it): $it")
-            }
-        }
-
-        if (problems.isNotEmpty()) {
+        if (verdict.problems.isNotEmpty()) {
             throw GradleException(
                 buildString {
                     appendLine("isolationCheck FAILED")
-                    appendLine("  $root (${configurationName.get()})")
-                    problems.forEach { appendLine("    $it") }
+                    appendLine("  ${platform.get()}: $root (${configurationName.get()})")
+                    verdict.problems.forEach { appendLine("    $it") }
                     appendLine("  allowlist: ${allowlistDisplayPath.get()}")
                 },
             )
         }
     }
 
-    private fun writeReport(
-        root: String,
-        actual: List<String>,
-        unexpected: List<String>,
-        stale: List<String>,
-        forbiddenExternals: List<String>,
-    ) {
+    private fun writeReport(root: String, verdict: IsolationVerdict) {
         val file = report.get().asFile
         file.parentFile.mkdirs()
         file.writeText(
             buildString {
-                appendLine("isolationCheck $root (${configurationName.get()})")
-                appendLine("projects on the resolved graph: ${actual.size}")
-                actual.forEach { appendLine("  $it") }
-                appendLine("unexpected: ${unexpected.size}")
-                unexpected.forEach { appendLine("  $it") }
-                appendLine("stale allowlist entries: ${stale.size}")
-                stale.forEach { appendLine("  $it") }
-                appendLine("forbidden externals: ${forbiddenExternals.size}")
-                forbiddenExternals.forEach { appendLine("  $it") }
+                appendLine("isolationCheck ${platform.get()} $root (${configurationName.get()})")
+                appendLine("projects on the resolved graph: ${verdict.actual.size}")
+                verdict.actual.forEach { appendLine("  $it") }
+                appendLine("unexpected: ${verdict.unexpected.size}")
+                verdict.unexpected.forEach { appendLine("  $it") }
+                appendLine("stale allowlist entries: ${verdict.stale.size}")
+                verdict.stale.forEach { appendLine("  $it") }
+                appendLine("forbidden externals: ${verdict.forbiddenExternals.size}")
+                verdict.forbiddenExternals.forEach { appendLine("  $it") }
             },
         )
     }

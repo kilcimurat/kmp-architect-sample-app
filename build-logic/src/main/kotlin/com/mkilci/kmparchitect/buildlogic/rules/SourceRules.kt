@@ -36,6 +36,13 @@ object SourceRules {
         ImportRule("app.cash.sqldelight", "Presentation must not reach storage directly."),
     )
 
+    private val dataForbidden = listOf(
+        ImportRule("com.mkilci.kmparchitect.presentation", "Data must not know about UI state or presentation."),
+        ImportRule("androidx.compose", "Data must not contain Compose UI."),
+        ImportRule("org.jetbrains.compose", "Data must not contain Compose UI."),
+        ImportRule("androidx.navigation", "Navigation belongs to presentation graphs and the application root."),
+    )
+
     private val coreForbidden = listOf(
         ImportRule("com.mkilci.kmparchitect.domain", "Core is feature-neutral."),
         ImportRule("com.mkilci.kmparchitect.data", "Core is feature-neutral."),
@@ -49,6 +56,17 @@ object SourceRules {
         ImportRule("io.ktor", "A fixture that performs real I/O is not deterministic."),
         ImportRule("app.cash.sqldelight", "A fixture that performs real I/O is not deterministic."),
         ImportRule("com.mkilci.kmparchitect.data", "Fixtures replace data implementations; they never wrap them."),
+        ImportRule("kotlin.random.Random", "Fixtures must use fixed or explicitly seeded randomness."),
+        ImportRule("kotlin.time.Clock", "Fixtures must use fixed or injected time."),
+        ImportRule("kotlinx.datetime.Clock", "Fixtures must use fixed or injected time."),
+        ImportRule("java.time.Clock", "Fixtures must use fixed or injected time."),
+    )
+
+    private val viewModelControllerImports = listOf(
+        "androidx.navigation",
+        "android.app.Activity",
+        "android.content.Context",
+        "platform.UIKit",
     )
 
     /** Markers that make a reducer impure. Reducers may be re-invoked by `MutableStateFlow.update`. */
@@ -75,6 +93,7 @@ object SourceRules {
         buildList {
             val importRules = when {
                 layer == Layer.Domain -> domainForbidden
+                layer == Layer.Data -> dataForbidden
                 layer == Layer.Presentation && !file.isTestSource -> presentationForbidden
                 layer == Layer.Core -> coreForbidden
                 layer == Layer.Fixtures -> fixturesForbidden
@@ -103,15 +122,41 @@ object SourceRules {
                 )
             }
 
-            if (!file.isTestSource && file.content.contains("MviViewModel<") &&
-                importsMarker(file.content, "androidx.navigation")
-            ) {
+            val controllerImport = viewModelControllerImports.firstOrNull { marker ->
+                importsMarker(file.content, marker)
+            }
+            if (!file.isTestSource && file.content.contains("MviViewModel<") && controllerImport != null) {
                 add(
                     Violation(
                         rule = "viewmodel-holds-navigator",
                         subject = "${file.projectPath} ${file.relativePath}",
-                        message = "a ViewModel file imports androidx.navigation. Route graphs own the " +
-                            "controller; ViewModels emit typed effects and hold no navigator.",
+                        message = "a ViewModel file imports '$controllerImport'. Route graphs/native hosts own " +
+                            "controllers; ViewModels emit typed effects and hold no platform navigator.",
+                    ),
+                )
+            }
+
+            if (layer == Layer.Presentation && !file.isTestSource &&
+                file.content.contains("@Composable") && resolvesRepositoryFromComposable(file.content)
+            ) {
+                add(
+                    Violation(
+                        rule = "composable-repository-lookup",
+                        subject = "${file.projectPath} ${file.relativePath}",
+                        message = "a composable resolves a repository from the DI container. Route composables " +
+                            "may resolve ViewModels; repositories stay behind domain use cases.",
+                    ),
+                )
+            }
+
+            if (!file.isTestSource && file.content.contains("MviViewModel<") &&
+                file.content.contains("sendEffect(") && importsMarker(file.content, "kotlinx.coroutines.GlobalScope")
+            ) {
+                add(
+                    Violation(
+                        rule = "unowned-effect-scope",
+                        subject = "${file.projectPath} ${file.relativePath}",
+                        message = "Effects must not originate from GlobalScope, which can outlive the ViewModel transport.",
                     ),
                 )
             }
@@ -141,4 +186,8 @@ object SourceRules {
             val trimmed = line.trimStart()
             trimmed.startsWith("import ") && trimmed.removePrefix("import ").trimStart().startsWith(marker)
         }
+
+    private fun resolvesRepositoryFromComposable(content: String): Boolean =
+        content.contains("getKoin().get<") && content.contains("Repository>") ||
+            content.contains("koinInject<") && content.contains("Repository>")
 }

@@ -33,21 +33,26 @@ mkdir -p "$(dirname "$out")"
 printf 'scenario\tmedian_ms\tmedian_tasks\truns_ms\truns_tasks\n' >> "$out"
 
 APP=":app:android:assembleDebug"
-SAMPLE=":sample:feed:androidApp:assembleDebug"
+FEED_SAMPLE=":sample:feed:androidApp:assembleDebug"
+BOOKMARKS_SAMPLE=":sample:bookmarks:androidApp:assembleDebug"
 
 COLD_REPS=3
 WARM_REPS=5
 
 log() { printf '%s\n' "$*" >&2; }
 
+now_ms() {
+  python3 -c 'import time; print(time.time_ns() // 1_000_000)'
+}
+
 # Runs Gradle once, echoing "<milliseconds> <tasks-executed>".
 run_once() {
   local log_file start end status executed
   log_file=$(mktemp)
-  start=$(date +%s%3N)
+  start=$(now_ms)
   ./gradlew "$@" --console=plain > "$log_file" 2>&1
   status=$?
-  end=$(date +%s%3N)
+  end=$(now_ms)
 
   # "82 actionable tasks: 24 executed, 58 up-to-date"
   executed=$(grep -oE '[0-9]+ executed' "$log_file" | tail -1 | grep -oE '^[0-9]+')
@@ -69,9 +74,28 @@ print(int(statistics.median(vals)) if vals else -1)
 " "$@"
 }
 
-# A content change that does not alter the module's ABI. That is the interesting case: if compile
-# avoidance is working, consumers should not have to recompile.
-touch_source() { printf '\n// benchmark touch %s\n' "$(date +%s%N)" >> "$1"; }
+# A content change that does not alter the module's ABI. The source is restored from a private
+# backup rather than through Git, so the benchmark is safe in exported/non-Git workspaces too.
+active_file=""
+active_backup=""
+
+restore_source() {
+  if [ -n "$active_file" ] && [ -f "$active_backup" ]; then
+    cp -p "$active_backup" "$active_file"
+    rm -f "$active_backup"
+  fi
+  active_file=""
+  active_backup=""
+}
+
+touch_source() {
+  active_file="$1"
+  active_backup=$(mktemp)
+  cp -p "$active_file" "$active_backup"
+  printf '\n// benchmark touch %s\n' "$(python3 -c 'import time; print(time.time_ns())')" >> "$active_file"
+}
+
+trap restore_source EXIT INT TERM
 
 scenario() {
   local name="$1" reps="$2" kind="$3" target="$4" file="${5:-}"
@@ -91,7 +115,7 @@ scenario() {
       edit)
         touch_source "$file"
         result=$(run_once "$target")
-        git checkout -- "$file" 2>/dev/null
+        restore_source
         # Re-settle so every repetition starts from the same state.
         ./gradlew "$target" --console=plain > /dev/null 2>&1
         ;;
@@ -115,26 +139,47 @@ scenario() {
   printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$m" "$t" "${ms[*]}" "${tasks[*]}" >> "$out"
 }
 
-PRESENTATION_FILE="presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/viewmodel/FeedViewModel.kt"
-DATA_FILE="data/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/data/feed/DefaultFeedRepository.kt"
+FEED_PRESENTATION_FILE="presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/viewmodel/FeedViewModel.kt"
+FEED_DATA_FILE="data/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/data/feed/DefaultFeedRepository.kt"
+BOOKMARKS_PRESENTATION_FILE="presentation/bookmarks/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/bookmarks/viewmodel/BookmarksViewModel.kt"
+BOOKMARKS_DATA_FILE="data/bookmarks/src/commonMain/kotlin/com/mkilci/kmparchitect/data/bookmarks/DefaultBookmarkRepository.kt"
 DESIGN_FILE="core/designsystem/src/commonMain/kotlin/com/mkilci/kmparchitect/core/designsystem/AppTheme.kt"
 
-log "cores=$(nproc) memory=$(free -g | awk '/^Mem:/{print $2}')GB projects=$(grep -c '^include(":' settings.gradle.kts)"
+if command -v sysctl >/dev/null 2>&1; then
+  cores=$(sysctl -n hw.logicalcpu 2>/dev/null || printf '?')
+  memory_bytes=$(sysctl -n hw.memsize 2>/dev/null || printf '0')
+  memory_gb=$((memory_bytes / 1024 / 1024 / 1024))
+else
+  cores=$(nproc 2>/dev/null || printf '?')
+  memory_gb=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')
+fi
+log "os=$(uname -s) cores=$cores memory=${memory_gb:-?}GB projects=$(grep -c '^include(":' settings.gradle.kts)"
 log "warming up"
-./gradlew "$APP" "$SAMPLE" --console=plain > /dev/null 2>&1
+./gradlew "$APP" "$FEED_SAMPLE" "$BOOKMARKS_SAMPLE" --console=plain > /dev/null 2>&1
 
 scenario "cold.app"                 "$COLD_REPS" cold   "$APP"
-scenario "cold.sample"              "$COLD_REPS" cold   "$SAMPLE"
+scenario "cold.feed-sample"         "$COLD_REPS" cold   "$FEED_SAMPLE"
+scenario "cold.bookmarks-sample"    "$COLD_REPS" cold   "$BOOKMARKS_SAMPLE"
 scenario "warm.nochange.app"        "$WARM_REPS" warm   "$APP"
-scenario "warm.nochange.sample"     "$WARM_REPS" warm   "$SAMPLE"
-scenario "edit-presentation.app"    "$WARM_REPS" edit   "$APP"    "$PRESENTATION_FILE"
-scenario "edit-presentation.sample" "$WARM_REPS" edit   "$SAMPLE" "$PRESENTATION_FILE"
-scenario "edit-data.app"            "$WARM_REPS" edit   "$APP"    "$DATA_FILE"
-scenario "edit-data.sample"         "$WARM_REPS" edit   "$SAMPLE" "$DATA_FILE"
+scenario "warm.nochange.feed-sample" "$WARM_REPS" warm  "$FEED_SAMPLE"
+scenario "warm.nochange.bookmarks-sample" "$WARM_REPS" warm "$BOOKMARKS_SAMPLE"
+scenario "edit-feed-presentation.app" "$WARM_REPS" edit "$APP" "$FEED_PRESENTATION_FILE"
+scenario "edit-feed-presentation.sample" "$WARM_REPS" edit "$FEED_SAMPLE" "$FEED_PRESENTATION_FILE"
+scenario "edit-bookmarks-presentation.app" "$WARM_REPS" edit "$APP" "$BOOKMARKS_PRESENTATION_FILE"
+scenario "edit-bookmarks-presentation.sample" "$WARM_REPS" edit "$BOOKMARKS_SAMPLE" "$BOOKMARKS_PRESENTATION_FILE"
+scenario "edit-feed-data.app"       "$WARM_REPS" edit   "$APP" "$FEED_DATA_FILE"
+scenario "edit-feed-data.sample"    "$WARM_REPS" edit   "$FEED_SAMPLE" "$FEED_DATA_FILE"
+scenario "edit-bookmarks-data.app"  "$WARM_REPS" edit   "$APP" "$BOOKMARKS_DATA_FILE"
+scenario "edit-bookmarks-data.sample" "$WARM_REPS" edit "$BOOKMARKS_SAMPLE" "$BOOKMARKS_DATA_FILE"
 scenario "edit-designsystem.app"    "$WARM_REPS" edit   "$APP"    "$DESIGN_FILE"
-scenario "edit-designsystem.sample" "$WARM_REPS" edit   "$SAMPLE" "$DESIGN_FILE"
+scenario "edit-designsystem.feed-sample" "$WARM_REPS" edit "$FEED_SAMPLE" "$DESIGN_FILE"
+scenario "edit-designsystem.bookmarks-sample" "$WARM_REPS" edit "$BOOKMARKS_SAMPLE" "$DESIGN_FILE"
 scenario "config.cold"              "$WARM_REPS" config help
 scenario "config.cold.isolated"     "$WARM_REPS" config-isolated help
 
 log ""
-column -t -s$'\t' "$out" >&2
+if command -v column >/dev/null 2>&1; then
+  column -t -s$'\t' "$out" >&2
+else
+  sed 's/\t/  /g' "$out" >&2
+fi

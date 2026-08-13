@@ -90,6 +90,20 @@ struct ProductApp: App {
 Keep usage descriptions, URL schemes, push/background modes, native service files, and required SDK
 ordering in the native host.
 
+Every Compose iOS executable host must put this entry in its authoritative Info.plist source. For
+XcodeGen, define it under the target's `info.properties` so regeneration cannot discard it:
+
+```yaml
+info:
+  path: Supporting/Info.plist
+  properties:
+    CADisableMinimumFrameDurationOnPhone: true
+```
+
+Compose performs a strict runtime plist sanity check. Omitting the key can let framework and Xcode
+builds pass while every installed application aborts on first render. Do not disable the check with
+`enforceStrictPlistSanityCheck = false`; preserve the high-refresh-rate behavior instead.
+
 ## 3. Framework embedding
 
 Export a static framework for every supported Apple target. The Xcode build phase must:
@@ -274,4 +288,7 @@ xcrun simctl launch --terminate-running-process booted <bundle-id>
 ```
 
 Inspect logs and visible state after launch. Exercise changed state updates, typed navigation effects,
-back behavior, resources, and fake data. Do not report runtime verification from compilation alone.
+back behavior, resources, and fake data. After `simctl launch`, wait briefly and confirm that the
+process remains alive or that the app is visibly foregrounded; the launch command can return success
+even when the process immediately aborts. On failure, inspect the console/crash report before retrying.
+Do not report runtime verification from compilation or install/launch exit codes alone.

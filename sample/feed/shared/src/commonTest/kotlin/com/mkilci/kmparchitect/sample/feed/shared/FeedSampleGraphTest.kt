@@ -4,8 +4,14 @@ import com.mkilci.kmparchitect.domain.feed.FeedRefreshResult
 import com.mkilci.kmparchitect.domain.feed.ObserveFeed
 import com.mkilci.kmparchitect.domain.feed.RefreshFeed
 import com.mkilci.kmparchitect.fixtures.feed.FeedFixtures
+import com.mkilci.kmparchitect.presentation.feed.viewmodel.FeedViewModel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -17,10 +23,12 @@ import kotlin.test.assertTrue
  * price of that trade: it proves the sample's graph actually resolves and produces the fixture
  * data the screen will show.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FeedSampleGraphTest {
 
     @BeforeTest
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         resetFeedSampleKoin()
         startFeedSampleKoinIfNeeded()
     }
@@ -28,6 +36,7 @@ class FeedSampleGraphTest {
     @AfterTest
     fun tearDown() {
         resetFeedSampleKoin()
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -36,6 +45,7 @@ class FeedSampleGraphTest {
 
         koin.get<ObserveFeed>()
         koin.get<RefreshFeed>()
+        koin.get<FeedViewModel>()
     }
 
     @Test

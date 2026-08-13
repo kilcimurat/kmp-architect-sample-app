@@ -3,7 +3,7 @@ name: KmpArchitectSampleApp
 options:
   bundleIdPrefix: com.mkilci.kmparchitect
   deploymentTarget:
-    iOS: "18.2"
+    iOS: "18.5"
   createIntermediateGroups: true
 
 configs:
@@ -13,6 +13,11 @@ configs:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    # The KMP graph intentionally targets Apple Silicon simulators only.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+    OTHER_LDFLAGS:
+      - $(inherited)
+      - -lsqlite3
     # The Gradle framework task writes into the build directory, which sandboxed
     # script phases cannot do.
     ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -30,6 +35,7 @@ targets:
       path: Supporting/Info.plist
       properties:
         CFBundleDisplayName: KMP Architect
+        CADisableMinimumFrameDurationOnPhone: true
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

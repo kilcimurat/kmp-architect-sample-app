@@ -106,6 +106,23 @@ class MviViewModelTest {
     }
 
     @Test
+    fun sending_on_a_full_transport_fails_fast_instead_of_dropping_silently() {
+        val viewModel = ProbeViewModel()
+
+        val failure = (0 until 10_000).firstNotNullOfOrNull { index ->
+            runCatching { viewModel.emit(ProbeEffect.Navigated(index.toString())) }.exceptionOrNull()
+        }
+
+        assertNotNull(failure, "the buffered transport never reported capacity exhaustion")
+        assertTrue(failure is IllegalStateException)
+        assertTrue(
+            failure.message.orEmpty().contains("closed=false"),
+            "a full active channel should be distinguished from a closed channel: ${failure.message}",
+        )
+        viewModel.clearThroughStore()
+    }
+
+    @Test
     fun viewModelScope_is_cancelled_before_the_effect_transport_closes() {
         // This is what makes the fail-fast policy safe rather than a crash: by the time the channel
         // closes, no coroutine owned by this ViewModel can still be running to send into it.

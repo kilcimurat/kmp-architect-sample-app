@@ -9,7 +9,7 @@ name: KmpArchitectSamples
 options:
   bundleIdPrefix: com.mkilci.kmparchitect.sample
   deploymentTarget:
-    iOS: "18.2"
+    iOS: "18.5"
   createIntermediateGroups: true
 
 configs:
@@ -19,6 +19,11 @@ configs:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    # The KMP graph intentionally targets Apple Silicon simulators only.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+    OTHER_LDFLAGS:
+      - $(inherited)
+      - -lsqlite3
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     LD_RUNPATH_SEARCH_PATHS:
       - $(inherited)
@@ -35,6 +40,7 @@ targetTemplates:
       path: Supporting/${feature}-Info.plist
       properties:
         CFBundleDisplayName: ${displayName}
+        CADisableMinimumFrameDurationOnPhone: true
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -43,6 +49,9 @@ targetTemplates:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mkilci.kmparchitect.sample.${gradleFeature}
+        # Keep the Swift app module distinct from the Kotlin framework module
+        # (`FeedSample`, `ArticleSample`, ...), which the host imports below.
+        PRODUCT_MODULE_NAME: ${feature}SampleHost
     preBuildScripts:
       - name: Compile Kotlin Framework
         basedOnDependencyAnalysis: false

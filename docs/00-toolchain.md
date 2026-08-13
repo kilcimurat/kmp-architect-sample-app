@@ -3,8 +3,10 @@
 Results of the compatibility spike run before any architecture module was written. Every claim here
 was produced by executing the command, not by reading documentation.
 
-Host: Linux x86_64, 128 cores, 251 GB RAM. Launcher JVM 11, Gradle daemon JVM 21 (Azul, pinned by
-`gradle/gradle-daemon-jvm.properties`).
+The original compatibility spike ran on Linux. The final architecture validation also ran on an
+Apple Silicon Mac (12 logical cores, 32 GB RAM), with the Gradle daemon JVM 21 pinned by
+`gradle/gradle-daemon-jvm.properties`. Historical Linux-only findings below are retained where they
+explain why macOS gates are required; current host results are called out explicitly.
 
 ## Pinned matrix
 
@@ -50,11 +52,12 @@ injects it as a port so tests and fixtures can seed it.
 The `app.cash.sqldelight` plugin applied cleanly alongside `com.android.kotlin.multiplatform.library`
 and generated the database class from a `.sq` file. This was the biggest unknown going in.
 
-**4. The whole stack compiles together.** Compose MP + navigation-compose + Koin + Ktor (incl.
-`MockEngine`) + SQLDelight + coroutines + serialization + datetime, in one module,
-`:androidApp:assembleDebug` → `BUILD SUCCESSFUL`.
+**4. The whole modular stack compiles together.** Compose MP + navigation-compose + Koin + Ktor
+(including `MockEngine`) + SQLDelight + coroutines + serialization + datetime pass the 30-project
+production and sample build graphs. `check isolationCheck`, all four Android APK builds and all four
+iOS simulator framework links are green.
 
-**5. iOS: klib compilation works on Linux, framework linking does not.**
+**5. iOS requires a macOS gate; that gate now passes.**
 
 | Task | Outcome on Linux |
 |---|---|
@@ -62,30 +65,26 @@ and generated the database class from a `.sq` file. This was the biggest unknown
 | `linkDebugFrameworkIosSimulatorArm64` | **SKIPPED** — no Apple target in the Linux Konan distribution (`android_*`, `linux_*`, `mingw_x64` only) |
 | `iosSimulatorArm64Test` | disabled: "simulator tests require macOS" |
 
-So all iOS-targeted Kotlin source is genuinely compile-verified on this machine; only framework
-binaries, Xcode builds and simulator runs need a Mac.
+On the final macOS validation, production plus all three sample frameworks linked, XcodeGen created
+both projects, and all four Swift hosts built for an arm64 iOS Simulator. See `docs/01-ios.md`.
 
 **Trap worth naming:** the skipped link task still reports `BUILD SUCCESSFUL`. A Linux CI job that
 runs `linkDebugFrameworkIosSimulatorArm64` will go green without linking anything. iOS gates must
 run on macOS runners, and a green Linux build must never be reported as iOS verification.
 
-**6. Gradle Isolated Projects is compatible so far.**
+**6. Gradle Isolated Projects is not compatible with the completed architecture plugin.**
 
-Status wording moves between releases and the user guide lags the release notes, so treat this as
-scoped to Gradle 9.7.0 and re-verify on any upgrade. The 9.7.0 release notes say the feature
-"transitions from being experimental to incubating", is not enabled by default, and is "not yet
-recommended for production use". It stays an optional measured optimisation here, never a
-requirement.
+The two-project spike passed, but the required re-check at 30 projects fails deterministically: the
+root `kmpa.architecture` plugin reads each subproject's configurations through `allprojects`, which
+violates project isolation. The flag remains off. The wrapper labels the Gradle 9.7 behavior
+incubating; status and compatibility must be re-verified on upgrades because the official feature
+guidance is version-sensitive.
 
-`-Dorg.gradle.unsafe.isolated-projects=true` ran `:androidApp:assembleDebug` successfully with
-AGP 9.0.1, KMP 2.4.10, Compose and SQLDelight applied — no isolation violations reported. This is a
-2-project build; it must be re-checked once the tree reaches ~29 projects, which is where the
-configuration cost the feature targets actually appears.
-
-Not enabled in `gradle.properties` yet. It stays an opt-in flag used for measurement until the full
-tree is in place.
+This is an optional build-performance optimization, not a Clean Architecture correctness gap. The
+architecture and runtime-classpath gates pass without it; `docs/02-benchmarks.md` records the exact
+failure and migration direction.
 
 ## Deliberately not suppressed
 
-`kotlin.native.ignoreDisabledTargets=true` would silence the per-module "native task is disabled"
-warnings. It is left off: the noise is the reminder that iOS tests are not running here.
+`kotlin.native.ignoreDisabledTargets=true` remains unset. On non-macOS hosts, disabled-target noise
+is a useful reminder that Apple binaries and tests need the separate macOS gate.

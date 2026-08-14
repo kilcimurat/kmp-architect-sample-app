@@ -56,7 +56,7 @@ nav.series a{display:block;margin:6px 0;}
   
 
   <p>
-    <em>The MVI layer of the KMP reference application from <a href="part-1-build-isolation.html">Part 1</a> —
+    <em>The MVI layer of the KMP reference application from <a href="part-1.html">Part 1</a> —
     <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>,
     the readable extract of a private 62-module, 11-feature codebase.</em>
   </p>
@@ -85,13 +85,7 @@ nav.series a{display:block;margin:6px 0;}
     <li><strong>Effect</strong> — a one-shot request to something outside the screen: navigate, share, open a dialog.</li>
   </ul>
   <p>The contract is small:</p>
-  <pre><code>interface ScreenEvent&lt;S : ScreenState&gt; {
-    fun reduce(oldState: S): S
-}
-
-override fun sendEvent(event: E) {
-    mutableState.update { current -&gt; event.reduce(current) }
-}</code></pre>
+  <pre><code>interface ScreenEvent&lt;S : ScreenState&gt; {<br>    fun reduce(oldState: S): S<br>}<br><br>override fun sendEvent(event: E) {<br>    mutableState.update { current -&gt; event.reduce(current) }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonMain/kotlin/com/mkilci/kmparchitect/core/mvi/ScreenContract.kt">ScreenContract.kt</a></p>
   <p>
     That <code>update</code> call is why purity is not a style preference.
@@ -100,17 +94,7 @@ override fun sendEvent(event: E) {
     does it an unpredictable number of times.
   </p>
   <p>Orchestration stays in the ViewModel, where it can suspend. The <em>completed result</em> becomes an event:</p>
-  <pre><code>private fun refresh() {
-    viewModelScope.launch {
-        sendEvent(FeedEvent.RefreshStarted)
-        val notice = when (refreshFeed()) {
-            Refreshed -&gt; null
-            Offline   -&gt; FeedNotice.Offline
-            is Failed -&gt; FeedNotice.RefreshFailed
-        }
-        sendEvent(FeedEvent.RefreshFinished(notice))
-    }
-}</code></pre>
+  <pre><code>private fun refresh() {<br>    viewModelScope.launch {<br>        sendEvent(FeedEvent.RefreshStarted)<br>        val notice = when (refreshFeed()) {<br>            Refreshed -&gt; null<br>            Offline   -&gt; FeedNotice.Offline<br>            is Failed -&gt; FeedNotice.RefreshFailed<br>        }<br>        sendEvent(FeedEvent.RefreshFinished(notice))<br>    }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/viewmodel/FeedViewModel.kt">FeedViewModel.kt</a></p>
   <p>
     Note what is mapped: a <strong>domain</strong> result, not an HTTP status. <code>Offline</code>
@@ -119,18 +103,7 @@ override fun sendEvent(event: E) {
   </p>
 
   <h2>Effects travel on a channel</h2>
-  <pre><code>private val effectChannel = Channel&lt;F&gt;(Channel.BUFFERED)
-val effects: Flow&lt;F&gt; = effectChannel.receiveAsFlow()
-
-protected fun sendEffect(effect: F) {
-    val result = effectChannel.trySend(effect)
-    check(result.isSuccess) { "Effect transport rejected effect (closed=${result.isClosed}): $effect" }
-}
-
-override fun onCleared() {
-    effectChannel.close()
-    super.onCleared()
-}</code></pre>
+  <pre><code>private val effectChannel = Channel&lt;F&gt;(Channel.BUFFERED)<br>val effects: Flow&lt;F&gt; = effectChannel.receiveAsFlow()<br><br>protected fun sendEffect(effect: F) {<br>    val result = effectChannel.trySend(effect)<br>    check(result.isSuccess) { "Effect transport rejected effect (closed=${result.isClosed}): $effect" }<br>}<br><br>override fun onCleared() {<br>    effectChannel.close()<br>    super.onCleared()<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonMain/kotlin/com/mkilci/kmparchitect/core/mvi/MviViewModel.kt">MviViewModel.kt</a></p>
 
   <figure><img src="../images/fig-mvi-action-event-effect.png" alt="MVI flow: actions enter the ViewModel, events reduce to state, and effects travel on a one-shot channel that never enters state."><figcaption>Action, Event, Effect — three words, not two.</figcaption></figure>
@@ -158,13 +131,7 @@ override fun onCleared() {
     transport is closed, nothing this ViewModel owns can still be running.
   </p>
   <p>That is a dependency on someone else’s ordering, so it is pinned rather than trusted:</p>
-  <pre><code>@Test
-fun viewModelScope_is_cancelled_before_the_effect_transport_closes() {
-    val viewModel = ProbeViewModel()
-    ViewModelStore().apply { put("probe", viewModel) }.clear()
-
-    assertTrue(viewModel.scopeAlreadyCancelledWhenTransportClosed == true)
-}</code></pre>
+  <pre><code>@Test<br>fun viewModelScope_is_cancelled_before_the_effect_transport_closes() {<br>    val viewModel = ProbeViewModel()<br>    ViewModelStore().apply { put("probe", viewModel) }.clear()<br><br>    assertTrue(viewModel.scopeAlreadyCancelledWhenTransportClosed == true)<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonTest/kotlin/com/mkilci/kmparchitect/core/mvi/MviViewModelTest.kt">MviViewModelTest.kt</a></p>
   <p>
     If a future androidx release changes that ordering, this test fails and someone reads the reasoning —
@@ -183,10 +150,7 @@ fun viewModelScope_is_cancelled_before_the_effect_transport_closes() {
     Each feature declares its own effect hierarchy, never merged with another’s. The collector is generic in
     the effect type on purpose:
   </p>
-  <pre><code>@Composable
-fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F) -&gt; Unit) {
-    LaunchedEffect(effects) { effects.collect(onEffect) }
-}</code></pre>
+  <pre><code>@Composable<br>fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F) -&gt; Unit) {<br>    LaunchedEffect(effects) { effects.collect(onEffect) }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/navigation/src/commonMain/kotlin/com/mkilci/kmparchitect/core/navigation/HandleEffects.kt">HandleEffects.kt</a></p>
   <p>
     Nothing narrows to <code>ScreenEffect</code>, so no collector needs a cast. <strong>The moment a cast
@@ -194,26 +158,18 @@ fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F)
     goes unhandled. With the generic version the <code>when</code> has no <code>else</code>, and adding an
     effect breaks compilation everywhere a decision is owed.
   </p>
-  <pre><code>fun NavGraphBuilder.feedGraph(onOpenArticle: (ArticleId) -&gt; Unit) { ... }
-
-HandleEffects(viewModel.effects) { effect -&gt;
-    when (effect) {
-        is FeedEffect.OpenArticle -&gt; onOpenArticle(effect.id)
-    }
-}</code></pre>
+  <pre><code>fun NavGraphBuilder.feedGraph(onOpenArticle: (ArticleId) -&gt; Unit) { ... }<br><br>HandleEffects(viewModel.effects) { effect -&gt;<br>    when (effect) {<br>        is FeedEffect.OpenArticle -&gt; onOpenArticle(effect.id)<br>    }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/navigation/FeedGraph.kt">FeedGraph.kt</a></p>
 
   <figure><img src="../images/fig-the-seam.png" alt="One feature route-graph parameter, bound three different ways by three different composition roots."><figcaption>The seam that makes an isolated sample possible: one parameter, three bindings.</figcaption></figure>
 
   <p>
-    <code>onOpenArticle</code> is the seam that made <a href="part-1-build-isolation.html">Part 1</a>’s isolated sample possible.
+    <code>onOpenArticle</code> is the seam that made <a href="part-1.html">Part 1</a>’s isolated sample possible.
     The feed feature says <em>what the user asked for</em>. It does not know the answer is the article
     feature.
   </p>
   <p>That decision belongs to exactly one module:</p>
-  <pre><code><span class="cm">// app/shared — the only place that knows all three features exist</span>
-feedGraph(onOpenArticle = navController::openArticle)
-bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
+  <pre><code><span class="cm">// app/shared — the only place that knows all three features exist</span><br>feedGraph(onOpenArticle = navController::openArticle)<br>bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/app/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/app/shared/App.kt">App.kt</a></p>
   <p>
     Both features emit an open-article request; neither depends on the article feature. The isolated sample
@@ -244,17 +200,11 @@ bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
 
   <h2>Making it enforceable</h2>
   <p>
-    Everything above is a convention until something checks it. <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a> described a gate
+    Everything above is a convention until something checks it. <a href="part-2.html">Part 2</a> described a gate
     that reads Kotlin sources; these are the MVI rules it carries.
   </p>
   <p><strong>A reducer must be pure.</strong> The check extracts <code>reduce</code> bodies and looks for what makes them impure:</p>
-  <pre><code>private val reducerForbidden = listOf(
-    ImportRule("viewModelScope", "A reducer must not start coroutines."),
-    ImportRule("Repository",     "A reducer must not call repositories."),
-    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),
-    ImportRule("sendEffect",     "A reducer must not emit effects."),
-    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),
-)</code></pre>
+  <pre><code>private val reducerForbidden = listOf(<br>    ImportRule("viewModelScope", "A reducer must not start coroutines."),<br>    ImportRule("Repository",     "A reducer must not call repositories."),<br>    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),<br>    ImportRule("sendEffect",     "A reducer must not emit effects."),<br>    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a> — five more markers there</p>
   <p><strong>An effect must not live in a state holder:</strong></p>
   <pre><code>private val effectInStateHolder = Regex("""MutableStateFlow\s*&lt;[^&gt;]*Effect""")</code></pre>
@@ -275,14 +225,14 @@ bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
   <ul>
     <li><strong>No durability.</strong> Effects are one-shot and in-process. Deep links and process-death restoration are navigation-state problems, solved by typed routes and saved state.</li>
     <li><strong>No cross-screen bus.</strong> Every effect hierarchy belongs to one screen. Coordination between two is a decision for the module that owns both — the app root, and nowhere else.</li>
-    <li><strong>Source-level checking, not semantic.</strong> A determined developer defeats any of these with an indirection. The goal is not to make violations impossible; it is to make them <em>deliberate and visible</em> — the same goal as the allowlists in <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a>.</li>
+    <li><strong>Source-level checking, not semantic.</strong> A determined developer defeats any of these with an indirection. The goal is not to make violations impossible; it is to make them <em>deliberate and visible</em> — the same goal as the allowlists in <a href="part-2.html">Part 2</a>.</li>
   </ul>
 
   <h2>The series, in one paragraph</h2>
   <p>
-    A feature should build without the application it belongs to (<a href="part-1-build-isolation.html">Part 1</a>). That property
+    A feature should build without the application it belongs to (<a href="part-1.html">Part 1</a>). That property
     should be proven by a resolved dependency graph rather than a diagram, on both platforms
-    (<a href="part-2-folder-shape-is-not-evidence.html">Part 2</a>). And the patterns inside the feature should be enforced by the same build
+    (<a href="part-2.html">Part 2</a>). And the patterns inside the feature should be enforced by the same build
     that enforces its boundaries (this part).
   </p>
   <p>
@@ -296,7 +246,7 @@ bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
     both platforms, two verification commands, and a validation report listing the seven failures found while
     proving it.
   </p>
-<nav class="series">Part 1 · <a href="part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3-auditable-mvi.html">Auditable MVI</a></nav>
+<nav class="series">Part 1 · <a href="part-1.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3.html">Auditable MVI</a></nav>
 </main>
 </body>
 </html>

@@ -61,7 +61,7 @@ nav.series a{display:block;margin:6px 0;}
     — is the three-feature reference extracted from it, where every command below runs.</em>
   </p>
   <p>
-    <a href="part-1-build-isolation.html">Part 1</a> ended with a number: a feature sample executes 9 Gradle tasks when the
+    <a href="part-1.html">Part 1</a> ended with a number: a feature sample executes 9 Gradle tasks when the
     production data layer changes, because it does not depend on the data layer.
   </p>
   <p>That number is worth exactly as much as your confidence that it will still be true in six months.</p>
@@ -74,8 +74,7 @@ nav.series a{display:block;margin:6px 0;}
   <p>So the interesting engineering here is not the topology. It is the verification.</p>
 
   <h2>Two checks, and why they are separate</h2>
-  <pre><code>./gradlew architectureCheck   <span class="cm"># declared edges, external dependencies, source rules</span>
-./gradlew isolationCheck      <span class="cm"># every sample's resolved graph vs. a checked-in allowlist</span></code></pre>
+  <pre><code>./gradlew architectureCheck   <span class="cm"># declared edges, external dependencies, source rules</span><br>./gradlew isolationCheck      <span class="cm"># every sample's resolved graph vs. a checked-in allowlist</span></code></pre>
   <p>
     <code>architectureCheck</code> reads what each module <strong>declares</strong>. Fast, runs on metadata
     and source text, catches the rule you broke on purpose.
@@ -92,13 +91,7 @@ nav.series a{display:block;margin:6px 0;}
 
   <h2>Gate one: rules as pure functions</h2>
   <p>The rule set is plain Kotlin in an included build, with no Gradle types near it:</p>
-  <pre><code>private val forbiddenTargets: Map&lt;Layer, Set&lt;Layer&gt;&gt; = mapOf(
-    Layer.Core         to setOf(Domain, Data, Presentation, Fixtures, Sample, App),
-    Layer.Domain       to setOf(Data, Presentation, Fixtures, Sample, App),
-    Layer.Presentation to setOf(Data, Sample, App),
-    <span class="cm">// the load-bearing rule</span>
-    Layer.Sample       to setOf(Data, App),
-)</code></pre>
+  <pre><code>private val forbiddenTargets: Map&lt;Layer, Set&lt;Layer&gt;&gt; = mapOf(<br>    Layer.Core         to setOf(Domain, Data, Presentation, Fixtures, Sample, App),<br>    Layer.Domain       to setOf(Data, Presentation, Fixtures, Sample, App),<br>    Layer.Presentation to setOf(Data, Sample, App),<br>    <span class="cm">// the load-bearing rule</span><br>    Layer.Sample       to setOf(Data, App),<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/DependencyRules.kt">DependencyRules.kt</a></p>
   <p>
     Classification comes from the project path alone — <code>:domain:feed</code> is
@@ -114,10 +107,7 @@ nav.series a{display:block;margin:6px 0;}
 
   <h3>Failures that read like a code review</h3>
   <p>Rules return a message, not an error code:</p>
-  <pre><code>from.layer == Layer.Sample &amp;&amp; to.layer == Layer.Data -&gt;
-    "A sample must not bind real repositories. This edge pulls network, persistence " +
-        "and serialization into the feature development loop, which is the cost this " +
-        "topology exists to remove."</code></pre>
+  <pre><code>from.layer == Layer.Sample &amp;&amp; to.layer == Layer.Data -&gt;<br>    "A sample must not bind real repositories. This edge pulls network, persistence " +<br>        "and serialization into the feature development loop, which is the cost this " +<br>        "topology exists to remove."</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/DependencyRules.kt">DependencyRules.kt</a></p>
   <p>
     The developer who hits this is, by definition, someone who did not know the rule.
@@ -131,12 +121,7 @@ nav.series a{display:block;margin:6px 0;}
     Nothing is forbidden absolutely. Everything unusual is <em>recorded</em>, in files meant to be edited in
     review:
   </p>
-  <pre><code><span class="cm"># config/api-allowlist.txt — every api edge, with its reason</span>
-:domain:feed   -&gt; :core:model    <span class="cm"># FeedRepository and its use cases expose Article</span>
-:fixtures:feed -&gt; :domain:feed   <span class="cm"># FakeFeedRepository implements FeedRepository</span>
-
-<span class="cm"># config/infrastructure-modules.txt — data modules that are plumbing, not a feature</span>
-:data:articlestore   <span class="cm"># feed writes it, article and bookmarks read it</span></code></pre>
+  <pre><code><span class="cm"># config/api-allowlist.txt — every api edge, with its reason</span><br>:domain:feed   -&gt; :core:model    <span class="cm"># FeedRepository and its use cases expose Article</span><br>:fixtures:feed -&gt; :domain:feed   <span class="cm"># FakeFeedRepository implements FeedRepository</span><br><br><span class="cm"># config/infrastructure-modules.txt — data modules that are plumbing, not a feature</span><br>:data:articlestore   <span class="cm"># feed writes it, article and bookmarks read it</span></code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/config/api-allowlist.txt">api-allowlist.txt</a> · <a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/config/infrastructure-modules.txt">infrastructure-modules.txt</a></p>
   <p>
     That second file is a real hole — “it’s infrastructure” is the easiest way to talk yourself out of a
@@ -150,11 +135,7 @@ nav.series a{display:block;margin:6px 0;}
     A module can import a forbidden type from a dependency it is legitimately allowed to have. Gradle sees
     nothing wrong. So a second family of rules reads source text:
   </p>
-  <pre><code>private val fixturesForbidden = listOf(
-    ImportRule("io.ktor", "A fixture that performs real I/O is not deterministic."),
-    ImportRule("kotlin.random.Random", "Fixtures must use fixed or explicitly seeded randomness."),
-    ImportRule("kotlin.time.Clock", "Fixtures must use fixed or injected time."),
-)</code></pre>
+  <pre><code>private val fixturesForbidden = listOf(<br>    ImportRule("io.ktor", "A fixture that performs real I/O is not deterministic."),<br>    ImportRule("kotlin.random.Random", "Fixtures must use fixed or explicitly seeded randomness."),<br>    ImportRule("kotlin.time.Clock", "Fixtures must use fixed or injected time."),<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a></p>
   <p>
     A fixture that reads the wall clock is not a fixture. It is a flaky test waiting for a specific Tuesday.
@@ -167,10 +148,7 @@ nav.series a{display:block;margin:6px 0;}
 
   <h2>Gate two: resolve the graph, name every project on it</h2>
   <p>Each sample has a checked-in file:</p>
-  <pre><code><span class="cm"># sample/feed/isolation-allowlist.txt</span>
-:sample:feed:shared
-:presentation:feed   :domain:feed   :fixtures:feed
-:core:model  :core:mvi  :core:navigation  :core:designsystem  :core:ui</code></pre>
+  <pre><code><span class="cm"># sample/feed/isolation-allowlist.txt</span><br>:sample:feed:shared<br>:presentation:feed   :domain:feed   :fixtures:feed<br>:core:model  :core:mvi  :core:navigation  :core:designsystem  :core:ui</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/isolation-allowlist.txt">sample/feed/isolation-allowlist.txt</a></p>
   <p>
     The task resolves the sample’s real classpath and reports three things: <strong>unexpected</strong>
@@ -183,12 +161,7 @@ nav.series a{display:block;margin:6px 0;}
   <p>
     When it bites, it names names. Real output from adding <code>:data:feed</code> to the feed sample:
   </p>
-  <pre><code><span class="bad">isolationCheck FAILED</span>
-  ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)
-    unexpected project on the resolved graph: :core:database
-    unexpected project on the resolved graph: :data:feed
-    forbidden external dependency reached the sample: app.cash.sqldelight:native-driver
-  allowlist: sample/feed/isolation-allowlist.txt</code></pre>
+  <pre><code><span class="bad">isolationCheck FAILED</span><br>  ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)<br>    unexpected project on the resolved graph: :core:database<br>    unexpected project on the resolved graph: :data:feed<br>    forbidden external dependency reached the sample: app.cash.sqldelight:native-driver<br>  allowlist: sample/feed/isolation-allowlist.txt</code></pre>
 
   <figure><img src="../images/fig-declared-vs-resolved.png" alt="A single declared dependency on the data feed module expands into five projects and the external data stack once the classpath is resolved."><figcaption>One declared edge, five resolved projects.</figcaption></figure>
 
@@ -208,17 +181,12 @@ nav.series a{display:block;margin:6px 0;}
     anything.
   </p>
   <p>So the check registers two tasks per sample, against one allowlist:</p>
-  <pre><code>const val ANDROID_CONFIGURATION = "debugRuntimeClasspath"
-const val IOS_CONFIGURATION     = "iosSimulatorArm64CompileKlibraries"</code></pre>
+  <pre><code>const val ANDROID_CONFIGURATION = "debugRuntimeClasspath"<br>const val IOS_CONFIGURATION     = "iosSimulatorArm64CompileKlibraries"</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/ArchitectureConventionPlugin.kt">ArchitectureConventionPlugin.kt</a></p>
 
   <figure><img src="../images/fig-two-roots-one-allowlist.png" alt="The isolation check resolves an Android runtime classpath and an iOS klib classpath against a single shared allowlist file."><figcaption>Two roots, two platforms, one allowlist.</figcaption></figure>
 
-  <pre><code>Sample      Android graph   iOS graph
-----------  -------------   ---------
-Feed           9 projects           8
-Article       10 projects           9
-Bookmarks      9 projects           8</code></pre>
+  <pre><code>Sample      Android graph   iOS graph<br>----------  -------------   ---------<br>Feed           9 projects           8<br>Article       10 projects           9<br>Bookmarks      9 projects           8</code></pre>
 
   <p>
     Each root is excluded from its own graph, so the projects underneath must match on both platforms — one
@@ -242,8 +210,7 @@ Bookmarks      9 projects           8</code></pre>
     dependency metadata rather than invoking the Apple toolchain, so it is valid on any host.</strong> That
     is unusual, because the normal situation is this:
   </p>
-  <pre><code>linkDebugFrameworkIosSimulatorArm64   SKIPPED
-BUILD SUCCESSFUL</code></pre>
+  <pre><code>linkDebugFrameworkIosSimulatorArm64   SKIPPED<br>BUILD SUCCESSFUL</code></pre>
   <p>
     On Linux, Apple link and test tasks are silently skipped while Gradle reports success. A CI job running
     the link task on a Linux runner goes green without linking anything. A green Linux build proves nothing
@@ -252,9 +219,7 @@ BUILD SUCCESSFUL</code></pre>
 
   <h2>Two things I would have gotten wrong</h2>
   <p><strong>A missing configuration must fail, not skip.</strong></p>
-  <pre><code>val configuration = sample.configurations.findByName(configurationName)
-    ?: error("isolationCheck cannot resolve '$configurationName' on ${sample.path}. " +
-             "The $platform gate would silently stop running.")</code></pre>
+  <pre><code>val configuration = sample.configurations.findByName(configurationName)<br>    ?: error("isolationCheck cannot resolve '$configurationName' on ${sample.path}. " +<br>             "The $platform gate would silently stop running.")</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/ArchitectureConventionPlugin.kt">ArchitectureConventionPlugin.kt</a></p>
   <p>
     The obvious code is <code>?: return</code>. Rename a configuration in a future AGP and the gate stops
@@ -296,11 +261,11 @@ BUILD SUCCESSFUL</code></pre>
     <li><strong>Rule maintenance is ongoing.</strong> Source rules are text matching, and text matching has false positives. Every rule carries unit tests including negative cases, so tightening one is a normal change rather than an archaeology project.</li>
   </ul>
   <p>
-    <a href="part-3-auditable-mvi.html">Part 3</a> turns to the MVI layer: pure reducers, typed one-shot effects on a channel
+    <a href="part-3.html">Part 3</a> turns to the MVI layer: pure reducers, typed one-shot effects on a channel
     that deliberately fails loudly, and the source rules that make all of it a build failure rather than a
     convention.
   </p>
-<nav class="series">Part 1 · <a href="part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3-auditable-mvi.html">Auditable MVI</a></nav>
+<nav class="series">Part 1 · <a href="part-1.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3.html">Auditable MVI</a></nav>
 </main>
 </body>
 </html>

@@ -112,13 +112,7 @@ nav.series a{display:block;margin:6px 0;}
 
   <p>Editing a line and rebuilding, same machine, median of repeated runs:</p>
 
-  <pre><code>Scenario              Production app   Feed sample        Bookmarks sample
---------------------  --------------   ----------------   ----------------
-cold build                 236 tasks              125                125
-no change                   20 tasks                9                  9
-presentation edit           24 tasks               13                 13
-data edit                   24 tasks    9 - unchanged      9 - unchanged
-design-system edit          24 tasks               13                 13</code></pre>
+  <pre><code>Scenario              Production app   Feed sample        Bookmarks sample<br>--------------------  --------------   ----------------   ----------------<br>cold build                 236 tasks              125                125<br>no change                   20 tasks                9                  9<br>presentation edit           24 tasks               13                 13<br>data edit                   24 tasks    9 - unchanged      9 - unchanged<br>design-system edit          24 tasks               13                 13</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/docs/02-benchmarks.md">02-benchmarks.md</a> — method, host and raw repetitions</p>
 
   <figure><img src="../images/fig-tasks-per-edit.png" alt="Grouped bar chart of executed Gradle tasks, production app versus feature sample, for a cold build and four warm scenarios."><figcaption>Executed Gradle tasks per edit. Median of 3 cold and 5 warm runs. The panels have separate scales — a
@@ -167,19 +161,7 @@ design-system edit          24 tasks               13                 13</code><
     Not a demo app. A <strong>composition root plus a NavHost</strong> — the only place in the feature’s
     world where “which implementation is live” gets decided.
   </p>
-  <pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
-    module {
-        single&lt;FeedRepository&gt; {
-            FakeFeedRepository(
-                initialArticles = FeedFixtures.articles,
-                refreshResults = listOf(Refreshed, Offline, Failed(RemoteUnavailable)),
-            )
-        }
-        factory { ObserveFeed(get()) }
-        factory { RefreshFeed(get()) }
-    },
-    feedPresentationModule,
-)</code></pre>
+  <pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(<br>    module {<br>        single&lt;FeedRepository&gt; {<br>            FakeFeedRepository(<br>                initialArticles = FeedFixtures.articles,<br>                refreshResults = listOf(Refreshed, Offline, Failed(RemoteUnavailable)),<br>            )<br>        }<br>        factory { ObserveFeed(get()) }<br>        factory { RefreshFeed(get()) }<br>    },<br>    feedPresentationModule,<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/SampleFeedModules.kt">SampleFeedModules.kt</a></p>
   <p>
     Three selections: the feature’s presentation module, its use cases, fixtures for its ports. No
@@ -226,19 +208,7 @@ design-system edit          24 tasks               13                 13</code><
     feature and you destroy the isolation the sample exists to provide.
   </p>
   <p>The third answer:</p>
-  <pre><code>@Serializable
-internal data class SampleOpenArticleRoute(val articleId: String)
-
-feedGraph(onOpenArticle = { id -&gt; navController.navigate(SampleOpenArticleRoute(id.value)) })
-
-composable&lt;SampleOpenArticleRoute&gt; {
-    MessageSurface(
-        title = "Outside this sample",
-        body = "Production opens the article feature. It is not part of this sample's graph.",
-        actionLabel = "Back",
-        onAction = { navController.popBackStack() },
-    )
-}</code></pre>
+  <pre><code>@Serializable<br>internal data class SampleOpenArticleRoute(val articleId: String)<br><br>feedGraph(onOpenArticle = { id -&gt; navController.navigate(SampleOpenArticleRoute(id.value)) })<br><br>composable&lt;SampleOpenArticleRoute&gt; {<br>    MessageSurface(<br>        title = "Outside this sample",<br>        body = "Production opens the article feature. It is not part of this sample's graph.",<br>        actionLabel = "Back",<br>        onAction = { navController.popBackStack() },<br>    )<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/FeedSampleRoot.kt">FeedSampleRoot.kt</a></p>
   <p>
     A typed, sample-local destination that names the request and supports back navigation. The isolation
@@ -248,7 +218,7 @@ composable&lt;SampleOpenArticleRoute&gt; {
     Notice what did <em>not</em> change to make that work. The ViewModel emits
     <code>FeedEffect.OpenArticle(id)</code> and has no idea what happens next; the route graph takes an
     <code>onOpenArticle</code> parameter. Production binds it to the article feature, the sample to a
-    placeholder. <a href="part-3-auditable-mvi.html">Part 3</a> is about that seam.
+    placeholder. <a href="part-3.html">Part 3</a> is about that seam.
   </p>
 
   <h2>What isolation does not fix</h2>
@@ -280,12 +250,12 @@ composable&lt;SampleOpenArticleRoute&gt; {
   </p>
   <p>
     That is not a code-review problem. It is a build-verification problem, and it is what
-    <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a> is about: two Gradle gates, one reading declared edges, one resolving the
+    <a href="part-2.html">Part 2</a> is about: two Gradle gates, one reading declared edges, one resolving the
     <em>actual</em> classpath of every sample on both Android and iOS — because a static iOS framework links
     a leaked data module exactly as happily as an APK packages it.
   </p>
   <p>
-    <a href="part-3-auditable-mvi.html">Part 3</a> covers the MVI layer and the source rules that turn its conventions into
+    <a href="part-3.html">Part 3</a> covers the MVI layer and the source rules that turn its conventions into
     build failures.
   </p>
 
@@ -294,7 +264,7 @@ composable&lt;SampleOpenArticleRoute&gt; {
     — the two gate commands, the raw benchmark repetitions, and a validation report listing the seven
     failures found while proving all of this, with <a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/ARCHITECTURE_VALIDATION_REPORT.md">how each was fixed</a>.
   </p>
-<nav class="series">Part 1 · <a href="part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3-auditable-mvi.html">Auditable MVI</a></nav>
+<nav class="series">Part 1 · <a href="part-1.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3.html">Auditable MVI</a></nav>
 </main>
 </body>
 </html>

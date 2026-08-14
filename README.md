@@ -7,6 +7,11 @@ Clean layering, MVI and typed navigation are here as means, not as the goal. The
 development loop, and the repository is built so that claim can be checked by a machine rather than
 believed from a diagram.
 
+The architecture was developed in a private codebase of **62 Gradle modules across 11 features**.
+This repository is a three-feature reference implementation extracted from it — small enough to read
+in an afternoon, complete enough to run the same gates on both platforms. Every number below comes
+from *this* repository and is reproducible here.
+
 ## The claim, measured
 
 Editing a line in a feature's `data` layer and rebuilding, on the same machine:
@@ -109,6 +114,9 @@ sample/<feature> ──► presentation + domain + fixtures of that feature only
   typed, one-shot and channel-delivered, never stored in replaying state.
 - **Deterministic fakes live in `fixtures/<feature>`**, written once and consumed by both that
   feature's presentation tests and its sample — never duplicated between them.
+
+These rules are stricter than three features require. They were written for eleven, and the reference
+keeps them intact rather than relaxing them for a smaller demo.
 
 ## Repository shape
 

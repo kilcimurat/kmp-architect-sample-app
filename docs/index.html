@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Smaller Build</title>
+<style>
+:root{--ink:#16181d;--ink2:#55606b;--ink3:#8a929c;--rule:#e3e6ea;--bg:#fff;--accent:#2a78d6;
+--serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;}
+@media(prefers-color-scheme:dark){:root{--ink:#eceff3;--ink2:#aeb6c0;--ink3:#79818b;
+--rule:#2e3339;--bg:#121417;--accent:#3987e5;}}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);margin:0;
+padding:72px 24px 96px;line-height:1.6;}
+main{max-width:680px;margin:0 auto;}
+.crumb{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+color:var(--ink3);margin:0 0 14px;}
+h1{font-family:var(--sans);font-size:40px;line-height:1.15;letter-spacing:-.022em;margin:0 0 16px;}
+p{font-size:19px;margin:0 0 24px;color:var(--ink2);}
+p.lead{color:var(--ink);}
+ol{list-style:none;padding:0;margin:40px 0 0;}
+li{border-top:1px solid var(--rule);padding:22px 0;}
+li a{font-family:var(--sans);font-size:22px;font-weight:600;color:var(--ink);
+text-decoration:none;line-height:1.3;display:block;}
+li a:hover{color:var(--accent);}
+li span{display:block;font-size:17px;color:var(--ink2);margin-top:6px;}
+li em{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:8px;}
+footer{border-top:1px solid var(--rule);margin-top:44px;padding-top:20px;
+font-family:var(--sans);font-size:15px;color:var(--ink3);}
+a{color:var(--accent);}
+</style>
+</head>
+<body>
+<main>
+  <p class="crumb">Three parts</p>
+  <h1>A Smaller Build</h1>
+  <p class="lead">
+    A Kotlin Multiplatform architecture whose goal is module-level build isolation: a developer
+    working on one feature builds and runs only that feature, on Android and iOS, and a Gradle gate
+    proves it rather than a diagram claiming it.
+  </p>
+  <p>
+    Developed in a private codebase of 62 Gradle modules across 11 features. This repository is the
+    three-feature reference implementation extracted from it, and every number in the series is
+    reproducible here.
+  </p>
+
+  <ol>
+    <li>
+      <em>Part 1</em>
+      <a href="articles/part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a>
+      <span>Build isolation as the goal, layering as the means, and the numbers that say whether it worked.</span>
+    </li>
+    <li>
+      <em>Part 2</em>
+      <a href="articles/part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a>
+      <span>Making a Gradle build prove that a KMP feature is isolated — on Android and iOS.</span>
+    </li>
+    <li>
+      <em>Part 3</em>
+      <a href="articles/part-3-auditable-mvi.html">Auditable MVI</a>
+      <span>Separating Action, Event and Effect, and making the separation a build failure instead of a code-review habit.</span>
+    </li>
+  </ol>
+
+  <footer>
+    Source: <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>
+    · Measurements: <a href="02-benchmarks.md">benchmarks</a>,
+    <a href="01-ios.md">iOS host evidence</a>,
+    <a href="03-isolated-projects.md">Isolated Projects</a>
+  </footer>
+</main>
+</body>
+</html>

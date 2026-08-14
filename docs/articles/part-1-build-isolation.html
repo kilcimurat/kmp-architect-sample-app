@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Feature Should Not Need Your App to Build</title>
+<style>
+:root{--ink:#16181d;--ink2:#55606b;--ink3:#8a929c;--rule:#e3e6ea;--rule2:#eef0f3;
+--bg:#fff;--code:#f6f7f8;--accent:#2a78d6;
+--serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;}
+@media(prefers-color-scheme:dark){:root{--ink:#eceff3;--ink2:#aeb6c0;--ink3:#79818b;
+--rule:#2e3339;--rule2:#23272c;--bg:#121417;--code:#1c1f23;--accent:#3987e5;}}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);margin:0;
+padding:56px 24px 96px;line-height:1.62;}
+main{max-width:680px;margin:0 auto;}
+h1{font-family:var(--sans);font-size:38px;line-height:1.16;letter-spacing:-.022em;margin:0 0 14px;}
+.dek{font-family:var(--sans);font-size:19px;color:var(--ink2);margin:0 0 10px;}
+.crumb{font-family:var(--sans);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+color:var(--ink3);margin:0 0 16px;}
+hr.top{border:0;border-top:1px solid var(--rule);margin:28px 0 34px;}
+p{font-size:20px;margin:0 0 26px;}
+h2{font-family:var(--sans);font-size:26px;line-height:1.25;margin:52px 0 18px;}
+h3{font-family:var(--sans);font-size:20px;margin:40px 0 14px;}
+ul{padding-left:22px;margin:0 0 26px;} li{font-size:20px;margin-bottom:12px;}
+a{color:var(--accent);}
+blockquote{margin:0 0 26px;padding:4px 0 4px 22px;border-left:3px solid var(--ink);}
+blockquote p{font-size:21px;font-weight:600;margin:0;}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);border:1px solid var(--rule2);
+border-radius:3px;padding:1px 5px;}
+pre{background:var(--code);border:1px solid var(--rule);border-radius:4px;padding:16px 18px;
+margin:0 0 28px;overflow-x:auto;line-height:1.5;}
+pre code{background:none;border:0;padding:0;font-size:13.5px;white-space:pre;}
+p.srclink{font-family:var(--mono);font-size:12.5px;color:var(--ink3);margin:-18px 0 28px;}
+p.srclink a{color:var(--ink3);} p.srclink::before{content:"\21b3  ";}
+figure{margin:8px 0 34px;width:min(96vw,980px);position:relative;left:50%;transform:translateX(-50%);}
+figure img{display:block;width:100%;height:auto;border:1px solid var(--rule);border-radius:5px;}
+figcaption{font-family:var(--sans);font-size:13px;color:var(--ink3);text-align:center;
+margin-top:12px;padding:0 20px;}
+.endnote{font-family:var(--sans);font-size:15px;color:var(--ink3);border-top:1px solid var(--rule);
+padding-top:20px;margin-top:44px;font-style:italic;}
+nav.series{font-family:var(--sans);font-size:14px;border-top:1px solid var(--rule);
+margin-top:40px;padding-top:20px;color:var(--ink3);}
+nav.series a{display:block;margin:6px 0;}
+</style>
+</head>
+<body>
+<main>
+<p class="crumb">Part 1 of 3 · Kotlin Multiplatform</p>
+  <h1>Your Feature Should Not Need Your App to Build</h1>
+  <p class="dek">
+    Build isolation as the goal, layering as the means — and the numbers that say whether it worked.
+  </p>
+  
+
+  <p>
+    Modularization advice is about dependency direction. Draw the arrows the right way, business rules in
+    the middle, framework at the edges.
+  </p>
+  <p>None of it tells you what you bought.</p>
+  <p>
+    Here is the question I wanted a number for: <strong>when a developer works on one feature, how much of
+    the application do they build?</strong>
+  </p>
+  <p>
+    On most modular Android and KMP codebases the honest answer is <em>all of it</em>. The module graph is
+    beautifully layered, and the run configuration still assembles an APK containing the network client,
+    the database driver, three other features and whatever SDK someone added last quarter.
+  </p>
+  <p>
+    The layering was never wrong. It just wasn’t load-bearing for the thing that costs you time every day.
+  </p>
+  <p>
+    This series is about a KMP application built the other way round: <strong>build isolation is the goal,
+    and layering is the means.</strong>
+  </p>
+
+  <h2>Where this comes from</h2>
+  <p>
+    The architecture was developed in a private codebase of <strong>62 Gradle modules across 11
+    features</strong>. The public repository is a three-feature reference implementation extracted from it
+    — small enough to read in an afternoon, complete enough to run the same gates on Android and iOS.
+  </p>
+  <p>
+    Every measurement below comes from the public repository, so all of it is reproducible. The design
+    decisions come from the larger one, where getting them wrong was expensive.
+  </p>
+  <p>
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>
+    — every code block in this series links to its source there.
+  </p>
+
+  <h2>The claim, with a stopwatch on it</h2>
+  <p>
+    An offline-first article reader: three features, Compose Multiplatform, Ktor syncing into a SQLDelight
+    store. Every feature has its own runnable sample app — on <strong>both</strong> platforms. The daily
+    loop is one command:
+  </p>
+  <pre><code>./gradlew :sample:feed:androidApp:installDebug</code></pre>
+  <p>Or, from the IDE:</p>
+
+  <figure class="narrow">
+    
+      <img src="../images/run-configurations.png" alt="Eight run configurations in the IDE: four Android, four Apple">
+    <figcaption>
+      Eight run configurations: the production app and one per feature, on each platform. A developer
+      working on bookmarks picks <code>sample.bookmarks.androidApp</code> or <code>BookmarksSample</code>,
+      and never builds the other two features, the app root, or the data layer.
+    </figcaption>
+  </figure>
+
+  <p>Editing a line and rebuilding, same machine, median of repeated runs:</p>
+
+  <pre><code>Scenario              Production app   Feed sample        Bookmarks sample
+--------------------  --------------   ----------------   ----------------
+cold build                 236 tasks              125                125
+no change                   20 tasks                9                  9
+presentation edit           24 tasks               13                 13
+data edit                   24 tasks    9 - unchanged      9 - unchanged
+design-system edit          24 tasks               13                 13</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/docs/02-benchmarks.md">02-benchmarks.md</a> — method, host and raw repetitions</p>
+
+  <figure><img src="../images/fig-tasks-per-edit.png" alt="Grouped bar chart of executed Gradle tasks, production app versus feature sample, for a cold build and four warm scenarios."><figcaption>Executed Gradle tasks per edit. Median of 3 cold and 5 warm runs. The panels have separate scales — a
+      cold build and a warm incremental build are not comparable magnitudes.</figcaption></figure>
+
+  <p>
+    The highlighted row is the point. A change in the production data layer leaves both samples at their
+    <em>no-change</em> graph. Nothing recompiles — not because the cache got lucky, but because those tasks
+    are not in the graph at all.
+  </p>
+  <p>
+    Two samples are measured rather than one, on purpose. One hand-picked sample tells you a number exists;
+    two independent ones tell you it repeats.
+  </p>
+  <p>
+    Task count is the portable signal. Wall time is machine-specific and I report it without dressing it up:
+    in one warm scenario the sample ran half the tasks and finished <em>slower</em> than production. That row
+    is in the repository and it stays there. The defensible claim is not “everything is faster” — it is
+    <strong>the build scope is smaller, and something enforces that it stays smaller.</strong>
+  </p>
+
+  <h2>One rule produces all of it</h2>
+  <blockquote><p><code>sample → data</code> is forbidden.</p></blockquote>
+  <p>That is the load-bearing rule. Everything else in the topology is downstream of it.</p>
+  <p>It keeps Ktor, SQLDelight, the JSON parser and DTO mapping out of the loop you run forty times a day.</p>
+
+  <figure><img src="../images/fig-dependency-direction.png" alt="Layer diagram: presentation and data both depend on domain, and all three depend on core."><figcaption>Dependency direction. On top of it: <code>app/shared</code> sees everything, a sample sees the
+      presentation, domain and fixtures of one feature — and nothing else.</figcaption></figure>
+
+  <figure><img src="../images/fig-what-each-build-contains.png" alt="Presence matrix of every module across the production app and the three feature samples. The data modules are present in production and absent from every sample."><figcaption>What each build actually contains. Read the <code>DATA</code> band across: four modules, present in
+      production, absent from all three samples — and with them Ktor, SQLDelight and the JSON parser.</figcaption></figure>
+
+  <p>
+    And it has a second-order effect that matters more than the build time. A sample <em>cannot</em> bind a
+    real repository, so it must bind something else — a deterministic fixture. Every feature ends up with a
+    working, offline, reproducible development environment whether anyone planned for it or not.
+  </p>
+  <p>Two supporting rules do the rest:</p>
+  <ul>
+    <li><strong>No feature depends on another feature.</strong> Cross-feature decisions belong to the app root alone.</li>
+    <li><strong><code>implementation</code> by default.</strong> Every <code>api</code> edge re-exports its target, so an ABI change there recompiles every consumer. Allowed — but each one is recorded in a file, with a reason.</li>
+  </ul>
+
+  <h2>What a sample actually is</h2>
+  <p>
+    Not a demo app. A <strong>composition root plus a NavHost</strong> — the only place in the feature’s
+    world where “which implementation is live” gets decided.
+  </p>
+  <pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
+    module {
+        single&lt;FeedRepository&gt; {
+            FakeFeedRepository(
+                initialArticles = FeedFixtures.articles,
+                refreshResults = listOf(Refreshed, Offline, Failed(RemoteUnavailable)),
+            )
+        }
+        factory { ObserveFeed(get()) }
+        factory { RefreshFeed(get()) }
+    },
+    feedPresentationModule,
+)</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/SampleFeedModules.kt">SampleFeedModules.kt</a></p>
+  <p>
+    Three selections: the feature’s presentation module, its use cases, fixtures for its ports. No
+    <code>data</code>, no app root, no other feature.
+  </p>
+  <p>
+    The scripted <code>refreshResults</code> list is small and pays well. The sample walks every branch of
+    the refresh banner in a fixed order — success, offline, failure — so anyone can see the error states
+    without unplugging their network. Randomness would have been easier to write and useless to demo
+    against.
+  </p>
+  <p>
+    Fixtures live in <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/fixtures/feed">their own module</a> and are consumed by exactly two callers: that feature’s tests and its
+    sample. Written once, not two fakes that drift apart over a year.
+  </p>
+  <p>The difference is visible without reading a single line of the build:</p>
+
+  <figure>
+    
+      <img src="../images/production-app.png" alt="The production app running on Android and iOS">
+    <figcaption>Production: four articles from the demo backend, and the <code>Feed</code> / <code>Saved</code> tab bar.</figcaption>
+  </figure>
+
+  <figure>
+    
+      <img src="../images/sample-feed.png" alt="The feed sample running on Android and iOS">
+    <figcaption>The feed sample: three deterministic fixture articles, and no tab bar.</figcaption>
+  </figure>
+
+  <p>
+    Same presentation code in both. The tab bar is missing from the sample because a shared navigation
+    surface is a cross-feature decision, and the only module entitled to make one is <code>app/shared</code>
+    — which is not on the sample’s graph. The article list is different because the repository behind it is.
+  </p>
+  <p>That is the whole architecture, in two screenshots.</p>
+
+  <h3>The interesting part: the edge of the sample</h3>
+  <p>
+    The feed screen opens articles. The article feature is deliberately outside the feed sample’s graph.
+  </p>
+  <p>So what happens when you tap?</p>
+  <p>
+    Two obvious answers, both wrong. Swallow the effect and you hide a broken flow. Import the article
+    feature and you destroy the isolation the sample exists to provide.
+  </p>
+  <p>The third answer:</p>
+  <pre><code>@Serializable
+internal data class SampleOpenArticleRoute(val articleId: String)
+
+feedGraph(onOpenArticle = { id -&gt; navController.navigate(SampleOpenArticleRoute(id.value)) })
+
+composable&lt;SampleOpenArticleRoute&gt; {
+    MessageSurface(
+        title = "Outside this sample",
+        body = "Production opens the article feature. It is not part of this sample's graph.",
+        actionLabel = "Back",
+        onAction = { navController.popBackStack() },
+    )
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/FeedSampleRoot.kt">FeedSampleRoot.kt</a></p>
+  <p>
+    A typed, sample-local destination that names the request and supports back navigation. The isolation
+    boundary becomes something you can see and tap.
+  </p>
+  <p>
+    Notice what did <em>not</em> change to make that work. The ViewModel emits
+    <code>FeedEffect.OpenArticle(id)</code> and has no idea what happens next; the route graph takes an
+    <code>onOpenArticle</code> parameter. Production binds it to the article feature, the sample to a
+    placeholder. <a href="part-3-auditable-mvi.html">Part 3</a> is about that seam.
+  </p>
+
+  <h2>What isolation does not fix</h2>
+  <p>Three limits, measured rather than argued away:</p>
+  <ul>
+    <li><strong>Configuration time gets worse, not better.</strong> More modules cost more configuration. It is skipped on a configuration-cache hit, which is why it stays out of the daily loop — but the split does not help it.</li>
+    <li><strong>A shared design-system change still recompiles the tree.</strong> That row is 13 tasks, not 9. If your most frequent edit is in shared UI, this topology moves your number less than the table suggests.</li>
+    <li><strong>A sample never exercises a real repository.</strong> A renamed DTO field, a SQL statement that only fails on API 24 — none of it surfaces in the fast loop. It surfaces in the data module’s own tests and in the production build. That is the price of the rule, and it should be paid deliberately.</li>
+  </ul>
+
+  <h2>When not to do this</h2>
+  <ul>
+    <li><strong>A single-feature app.</strong> Nothing to isolate; you’d pay the module tax for one graph.</li>
+    <li><strong>A team of two or three.</strong> The problem this solves is a several-teams-one-repo problem.</li>
+    <li><strong>When nobody will maintain the gates.</strong> A rule no machine enforces decays into a comment.</li>
+  </ul>
+  <p>
+    The cost side of the ledger: two composition roots per feature, a fixtures module per feature, and a
+    build-logic project with its own tests. In the reference that is 30 Gradle projects for three screens,
+    which is plainly a lot of structure for what it renders — the reference exists to be read. The structure
+    earns its keep at the size it was written for: around a dozen features, several people editing several
+    of them at once.
+  </p>
+
+  <h2>Next</h2>
+  <p>
+    That table is worth nothing if the property it measures can quietly regress. Someone adds one convenient
+    dependency, the graph grows, and the number goes back to where it was before anyone notices.
+  </p>
+  <p>
+    That is not a code-review problem. It is a build-verification problem, and it is what
+    <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a> is about: two Gradle gates, one reading declared edges, one resolving the
+    <em>actual</em> classpath of every sample on both Android and iOS — because a static iOS framework links
+    a leaked data module exactly as happily as an APK packages it.
+  </p>
+  <p>
+    <a href="part-3-auditable-mvi.html">Part 3</a> covers the MVI layer and the source rules that turn its conventions into
+    build failures.
+  </p>
+
+  <p class="endnote">
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>
+    — the two gate commands, the raw benchmark repetitions, and a validation report listing the seven
+    failures found while proving all of this, with <a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/ARCHITECTURE_VALIDATION_REPORT.md">how each was fixed</a>.
+  </p>
+<nav class="series">Part 1 · <a href="part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3-auditable-mvi.html">Auditable MVI</a></nav>
+</main>
+</body>
+</html>

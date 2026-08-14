@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditable MVI</title>
+<style>
+:root{--ink:#16181d;--ink2:#55606b;--ink3:#8a929c;--rule:#e3e6ea;--rule2:#eef0f3;
+--bg:#fff;--code:#f6f7f8;--accent:#2a78d6;
+--serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;}
+@media(prefers-color-scheme:dark){:root{--ink:#eceff3;--ink2:#aeb6c0;--ink3:#79818b;
+--rule:#2e3339;--rule2:#23272c;--bg:#121417;--code:#1c1f23;--accent:#3987e5;}}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);margin:0;
+padding:56px 24px 96px;line-height:1.62;}
+main{max-width:680px;margin:0 auto;}
+h1{font-family:var(--sans);font-size:38px;line-height:1.16;letter-spacing:-.022em;margin:0 0 14px;}
+.dek{font-family:var(--sans);font-size:19px;color:var(--ink2);margin:0 0 10px;}
+.crumb{font-family:var(--sans);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+color:var(--ink3);margin:0 0 16px;}
+hr.top{border:0;border-top:1px solid var(--rule);margin:28px 0 34px;}
+p{font-size:20px;margin:0 0 26px;}
+h2{font-family:var(--sans);font-size:26px;line-height:1.25;margin:52px 0 18px;}
+h3{font-family:var(--sans);font-size:20px;margin:40px 0 14px;}
+ul{padding-left:22px;margin:0 0 26px;} li{font-size:20px;margin-bottom:12px;}
+a{color:var(--accent);}
+blockquote{margin:0 0 26px;padding:4px 0 4px 22px;border-left:3px solid var(--ink);}
+blockquote p{font-size:21px;font-weight:600;margin:0;}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);border:1px solid var(--rule2);
+border-radius:3px;padding:1px 5px;}
+pre{background:var(--code);border:1px solid var(--rule);border-radius:4px;padding:16px 18px;
+margin:0 0 28px;overflow-x:auto;line-height:1.5;}
+pre code{background:none;border:0;padding:0;font-size:13.5px;white-space:pre;}
+p.srclink{font-family:var(--mono);font-size:12.5px;color:var(--ink3);margin:-18px 0 28px;}
+p.srclink a{color:var(--ink3);} p.srclink::before{content:"\21b3  ";}
+figure{margin:8px 0 34px;width:min(96vw,980px);position:relative;left:50%;transform:translateX(-50%);}
+figure img{display:block;width:100%;height:auto;border:1px solid var(--rule);border-radius:5px;}
+figcaption{font-family:var(--sans);font-size:13px;color:var(--ink3);text-align:center;
+margin-top:12px;padding:0 20px;}
+.endnote{font-family:var(--sans);font-size:15px;color:var(--ink3);border-top:1px solid var(--rule);
+padding-top:20px;margin-top:44px;font-style:italic;}
+nav.series{font-family:var(--sans);font-size:14px;border-top:1px solid var(--rule);
+margin-top:40px;padding-top:20px;color:var(--ink3);}
+nav.series a{display:block;margin:6px 0;}
+</style>
+</head>
+<body>
+<main>
+<p class="crumb">Part 3 of 3 · Architecture</p>
+  <h1>Auditable MVI</h1>
+  <p class="dek">
+    Separating Action, Event and Effect — and making the separation a build failure instead of a code-review
+    habit.
+  </p>
+  
+
+  <p>
+    <em>The MVI layer of the KMP reference application from <a href="part-1-build-isolation.html">Part 1</a> —
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>,
+    the readable extract of a private 62-module, 11-feature codebase.</em>
+  </p>
+  <p>Put a navigation command in a state holder and you have written a bug with a delay fuse.</p>
+  <p>
+    State replays its current value on collection. The user rotates the device, the state re-emits, and the
+    screen navigates again — to a destination they already dismissed.
+  </p>
+  <p>
+    Every workaround for this is an apology for storing the wrong thing in the wrong place: a nullable field
+    plus a “consumed” flag, <code>SingleLiveEvent</code>, an id you compare against the last one handled.
+  </p>
+  <p>
+    Everyone knows this. Almost everyone’s codebase does it anyway, eventually, because the rule lives in a
+    document and the code review in front of you is one diff.
+  </p>
+  <p>
+    This part is about the rules — and then about what it takes to stop relying on people remembering them.
+  </p>
+
+  <h2>Three words, not two</h2>
+  <p>Most implementations collapse this into two concepts and spend years working around the collapse:</p>
+  <ul>
+    <li><strong>Action</strong> — what the user did. <code>ArticleClicked</code>. Not a state change, not a navigation command.</li>
+    <li><strong>Event</strong> — a state transition. Owns a pure <code>reduce</code>.</li>
+    <li><strong>Effect</strong> — a one-shot request to something outside the screen: navigate, share, open a dialog.</li>
+  </ul>
+  <p>The contract is small:</p>
+  <pre><code>interface ScreenEvent&lt;S : ScreenState&gt; {
+    fun reduce(oldState: S): S
+}
+
+override fun sendEvent(event: E) {
+    mutableState.update { current -&gt; event.reduce(current) }
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonMain/kotlin/com/mkilci/kmparchitect/core/mvi/ScreenContract.kt">ScreenContract.kt</a></p>
+  <p>
+    That <code>update</code> call is why purity is not a style preference.
+    <strong><code>MutableStateFlow.update</code> may invoke its lambda more than once under
+    contention.</strong> A reducer that writes to a database, sends an analytics ping or starts a coroutine
+    does it an unpredictable number of times.
+  </p>
+  <p>Orchestration stays in the ViewModel, where it can suspend. The <em>completed result</em> becomes an event:</p>
+  <pre><code>private fun refresh() {
+    viewModelScope.launch {
+        sendEvent(FeedEvent.RefreshStarted)
+        val notice = when (refreshFeed()) {
+            Refreshed -&gt; null
+            Offline   -&gt; FeedNotice.Offline
+            is Failed -&gt; FeedNotice.RefreshFailed
+        }
+        sendEvent(FeedEvent.RefreshFinished(notice))
+    }
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/viewmodel/FeedViewModel.kt">FeedViewModel.kt</a></p>
+  <p>
+    Note what is mapped: a <strong>domain</strong> result, not an HTTP status. <code>Offline</code>
+    (expected, cached data still valid) is a different thing from <code>Failed(reason)</code> (worth telling
+    the user about), and the reason is a domain enum. The transport is dead by the time this runs.
+  </p>
+
+  <h2>Effects travel on a channel</h2>
+  <pre><code>private val effectChannel = Channel&lt;F&gt;(Channel.BUFFERED)
+val effects: Flow&lt;F&gt; = effectChannel.receiveAsFlow()
+
+protected fun sendEffect(effect: F) {
+    val result = effectChannel.trySend(effect)
+    check(result.isSuccess) { "Effect transport rejected effect (closed=${result.isClosed}): $effect" }
+}
+
+override fun onCleared() {
+    effectChannel.close()
+    super.onCleared()
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonMain/kotlin/com/mkilci/kmparchitect/core/mvi/MviViewModel.kt">MviViewModel.kt</a></p>
+
+  <figure><img src="../images/fig-mvi-action-event-effect.png" alt="MVI flow: actions enter the ViewModel, events reduce to state, and effects travel on a one-shot channel that never enters state."><figcaption>Action, Event, Effect — three words, not two.</figcaption></figure>
+
+  <p>
+    Buffered, consumed once. Delivery is in-process and non-durable, and that is the correct trade:
+    <strong>persist business state, never navigation commands.</strong> A command that survives process death
+    fires into a world that has moved on.
+  </p>
+
+  <h3>Failing loudly, and earning the right to</h3>
+  <p>
+    <code>trySend</code> failing throws instead of dropping silently. That is aggressive, and only defensible
+    if a rejection can never happen during ordinary teardown.
+  </p>
+  <p>The rule that makes it safe is about <strong>scope ownership</strong>, not coroutines:</p>
+  <ul>
+    <li>a synchronous effect may come straight from a ViewModel-owned method — <code>onAction</code> calling <code>sendEffect</code> needs no coroutine;</li>
+    <li>an asynchronous one must come from <code>viewModelScope</code>, or another scope this ViewModel owns;</li>
+    <li>an effect must never come from an unowned scope.</li>
+  </ul>
+  <p>
+    Underneath sits a lifecycle detail: <code>ViewModel.clear()</code> cancels <code>viewModelScope</code>
+    <strong>before</strong> calling <code>onCleared()</code>, where the channel closes. By the time the
+    transport is closed, nothing this ViewModel owns can still be running.
+  </p>
+  <p>That is a dependency on someone else’s ordering, so it is pinned rather than trusted:</p>
+  <pre><code>@Test
+fun viewModelScope_is_cancelled_before_the_effect_transport_closes() {
+    val viewModel = ProbeViewModel()
+    ViewModelStore().apply { put("probe", viewModel) }.clear()
+
+    assertTrue(viewModel.scopeAlreadyCancelledWhenTransportClosed == true)
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonTest/kotlin/com/mkilci/kmparchitect/core/mvi/MviViewModelTest.kt">MviViewModelTest.kt</a></p>
+  <p>
+    If a future androidx release changes that ordering, this test fails and someone reads the reasoning —
+    instead of users getting a crash on rotation.
+  </p>
+  <p>
+    Two neighbouring tests are worth copying. One proves consumed effects are not replayed to a second
+    collector, using a nice trick: closing the transport is what lets <code>toList()</code> terminate at all,
+    so the fact that it would otherwise suspend forever <em>is</em> the proof that nothing was buffered for
+    replay. The other proves a <em>full</em> channel and a <em>closed</em> channel fail distinguishably —
+    “filled up under load” and “you sent after teardown” are different bugs.
+  </p>
+
+  <h2>The seam</h2>
+  <p>
+    Each feature declares its own effect hierarchy, never merged with another’s. The collector is generic in
+    the effect type on purpose:
+  </p>
+  <pre><code>@Composable
+fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F) -&gt; Unit) {
+    LaunchedEffect(effects) { effects.collect(onEffect) }
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/navigation/src/commonMain/kotlin/com/mkilci/kmparchitect/core/navigation/HandleEffects.kt">HandleEffects.kt</a></p>
+  <p>
+    Nothing narrows to <code>ScreenEffect</code>, so no collector needs a cast. <strong>The moment a cast
+    appears at a graph boundary, exhaustiveness is gone</strong> and an effect can be added that silently
+    goes unhandled. With the generic version the <code>when</code> has no <code>else</code>, and adding an
+    effect breaks compilation everywhere a decision is owed.
+  </p>
+  <pre><code>fun NavGraphBuilder.feedGraph(onOpenArticle: (ArticleId) -&gt; Unit) { ... }
+
+HandleEffects(viewModel.effects) { effect -&gt;
+    when (effect) {
+        is FeedEffect.OpenArticle -&gt; onOpenArticle(effect.id)
+    }
+}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/navigation/FeedGraph.kt">FeedGraph.kt</a></p>
+
+  <figure><img src="../images/fig-the-seam.png" alt="One feature route-graph parameter, bound three different ways by three different composition roots."><figcaption>The seam that makes an isolated sample possible: one parameter, three bindings.</figcaption></figure>
+
+  <p>
+    <code>onOpenArticle</code> is the seam that made <a href="part-1-build-isolation.html">Part 1</a>’s isolated sample possible.
+    The feed feature says <em>what the user asked for</em>. It does not know the answer is the article
+    feature.
+  </p>
+  <p>That decision belongs to exactly one module:</p>
+  <pre><code><span class="cm">// app/shared — the only place that knows all three features exist</span>
+feedGraph(onOpenArticle = navController::openArticle)
+bookmarksGraph(onOpenArticle = navController::openArticle)</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/app/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/app/shared/App.kt">App.kt</a></p>
+  <p>
+    Both features emit an open-article request; neither depends on the article feature. The isolated sample
+    binds the same parameter to a placeholder screen. Same feature code, three consumers, zero conditionals.
+  </p>
+
+  <h2>Where DI ownership sits</h2>
+  <p>
+    A presentation module defines exactly one thing: the ViewModel that feature owns. The use cases are
+    deliberately absent — they are constructed by whichever composition root is active, production against
+    the real repository and the sample against a fixture.
+  </p>
+  <p>
+    If the presentation module defined them, it would carry an opinion about which repository is live, and
+    the isolated sample could not exist without editing it.
+  </p>
+  <p>
+    The container is runtime (Koin) rather than compile-time codegen, and that is a build-isolation decision
+    before it is a DI preference: an aggregating annotation processor in the feature build path reintroduces
+    exactly the whole-graph compilation the module split removed.
+  </p>
+  <p>
+    Runtime DI trades compile-time wiring errors for startup errors, so <strong>every composition root owes a
+    graph-startup test.</strong> That is the bill, and it is paid — each sample has one that resolves its use
+    cases and its initial ViewModel.
+  </p>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/di/FeedPresentationModule.kt">FeedPresentationModule.kt</a> · <a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonTest/kotlin/com/mkilci/kmparchitect/sample/feed/shared/FeedSampleGraphTest.kt">FeedSampleGraphTest.kt</a></p>
+
+  <h2>Making it enforceable</h2>
+  <p>
+    Everything above is a convention until something checks it. <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a> described a gate
+    that reads Kotlin sources; these are the MVI rules it carries.
+  </p>
+  <p><strong>A reducer must be pure.</strong> The check extracts <code>reduce</code> bodies and looks for what makes them impure:</p>
+  <pre><code>private val reducerForbidden = listOf(
+    ImportRule("viewModelScope", "A reducer must not start coroutines."),
+    ImportRule("Repository",     "A reducer must not call repositories."),
+    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),
+    ImportRule("sendEffect",     "A reducer must not emit effects."),
+    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),
+)</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a> — five more markers there</p>
+  <p><strong>An effect must not live in a state holder:</strong></p>
+  <pre><code>private val effectInStateHolder = Regex("""MutableStateFlow\s*&lt;[^&gt;]*Effect""")</code></pre>
+  <p>— failing with a message that explains the actual bug rather than citing a rule number.</p>
+  <p>Three more, each one line of policy:</p>
+  <ul>
+    <li><strong>A ViewModel must not hold a native controller.</strong> A file with <code>MviViewModel&lt;</code> that imports <code>androidx.navigation</code>, <code>android.content.Context</code> or <code>platform.UIKit</code> fails. Route graphs and native hosts own controllers.</li>
+    <li><strong>A composable must not resolve a repository from the container.</strong> Route composables may resolve ViewModels; repositories stay behind use cases, or the layering is decorative.</li>
+    <li><strong>Effects must not originate from <code>GlobalScope</code></strong> — the one thing that would genuinely make the fail-fast policy unsafe.</li>
+  </ul>
+  <p>
+    These are text-level heuristics and heuristics have false positives. The mitigation is the same as
+    everywhere else here: each rule carries tests including the cases that must <strong>not</strong> fire. The
+    alternative — “we all agreed reducers should be pure” — has a false-negative rate of 100% eventually.
+  </p>
+
+  <h2>What this does not give you</h2>
+  <ul>
+    <li><strong>No durability.</strong> Effects are one-shot and in-process. Deep links and process-death restoration are navigation-state problems, solved by typed routes and saved state.</li>
+    <li><strong>No cross-screen bus.</strong> Every effect hierarchy belongs to one screen. Coordination between two is a decision for the module that owns both — the app root, and nowhere else.</li>
+    <li><strong>Source-level checking, not semantic.</strong> A determined developer defeats any of these with an indirection. The goal is not to make violations impossible; it is to make them <em>deliberate and visible</em> — the same goal as the allowlists in <a href="part-2-folder-shape-is-not-evidence.html">Part 2</a>.</li>
+  </ul>
+
+  <h2>The series, in one paragraph</h2>
+  <p>
+    A feature should build without the application it belongs to (<a href="part-1-build-isolation.html">Part 1</a>). That property
+    should be proven by a resolved dependency graph rather than a diagram, on both platforms
+    (<a href="part-2-folder-shape-is-not-evidence.html">Part 2</a>). And the patterns inside the feature should be enforced by the same build
+    that enforces its boundaries (this part).
+  </p>
+  <p>
+    The layering, the MVI and the typed navigation are not the achievement. They are what a small, verifiable
+    build scope looks like once you decide the build scope is the thing worth protecting.
+  </p>
+
+  <p class="endnote">
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app">github.com/kilcimurat/kmp-architect-sample-app</a>
+    — a working Android + iOS Compose Multiplatform app: three features, each with its own runnable sample on
+    both platforms, two verification commands, and a validation report listing the seven failures found while
+    proving it.
+  </p>
+<nav class="series">Part 1 · <a href="part-1-build-isolation.html">Your Feature Should Not Need Your App to Build</a><br>Part 2 · <a href="part-2-folder-shape-is-not-evidence.html">Folder Shape Is Not Evidence</a><br>Part 3 · <a href="part-3-auditable-mvi.html">Auditable MVI</a></nav>
+</main>
+</body>
+</html>

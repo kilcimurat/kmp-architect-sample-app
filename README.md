@@ -12,6 +12,10 @@ This repository is a three-feature reference implementation extracted from it â€
 in an afternoon, complete enough to run the same gates on both platforms. Every number below comes
 from *this* repository and is reproducible here.
 
+**The write-up:** [A Smaller Build](https://kilcimurat.github.io/kmp-architect-sample-app/) â€” three
+articles on why the topology is shaped this way, how the build proves it on both platforms, and what
+it takes to make MVI rules enforceable instead of aspirational.
+
 ## The claim, measured
 
 Editing a line in a feature's `data` layer and rebuilding, on the same machine:

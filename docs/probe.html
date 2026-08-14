@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Code block import probe</title>
+<style>body{font-family:Georgia,serif;max-width:680px;margin:40px auto;padding:0 20px}
+pre{background:#f6f7f8;border:1px solid #ddd;padding:14px;overflow-x:auto;white-space:pre}
+pre code{font-family:ui-monospace,Menlo,monospace;font-size:13px}</style></head><body>
+<h1>Code block import probe</h1>
+<p>Four ways of emitting the same snippet, to find which one survives an import.</p>
+<h2>A — pre + code, raw newlines</h2>
+<pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
+    module {
+        single&lt;FeedRepository&gt; { FakeFeedRepository() }
+    },
+)</code></pre>
+<h2>B — pre + code, br tags and nbsp indent</h2>
+<pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(<br>&nbsp;&nbsp;&nbsp;&nbsp;module {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;single&lt;FeedRepository&gt; { FakeFeedRepository() }<br>&nbsp;&nbsp;&nbsp;&nbsp;},<br>)</code></pre>
+<h2>C — pre only, raw newlines</h2>
+<pre>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
+    module {
+        single&lt;FeedRepository&gt; { FakeFeedRepository() }
+    },
+)</pre>
+<h2>D — pre + code, div per line</h2>
+<pre><code><div>fun sampleFeedModules(): List&lt;Module&gt; = listOf(</div><div>&nbsp;&nbsp;&nbsp;&nbsp;module {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;single&lt;FeedRepository&gt; { FakeFeedRepository() }</div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>)</div></code></pre>
+<p>End of probe.</p>
+</body></html>

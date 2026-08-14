@@ -90,6 +90,36 @@ parsing and sync are all real code while results stay reproducible.
 Each feature has its own runnable sample application on **both** platforms. A feature is not
 finished until its sample runs on Android and iOS.
 
+## What that looks like from the IDE
+
+<img src="docs/images/run-configurations.png" alt="Eight run configurations in the IDE: four Android, four Apple" width="330">
+
+Eight run configurations: the production app and one per feature, on each platform. A developer
+working on bookmarks picks `sample.bookmarks.androidApp` or `BookmarksSample` and never builds the
+other two features, the app root, or the data layer.
+
+### Production
+
+![The production app running on Android and iOS](docs/images/production-app.png)
+
+Four articles from the demo backend, and the `Feed` / `Saved` tab bar. The tab bar exists only here:
+deciding that two features share a navigation surface is a cross-feature decision, and `app/shared`
+is the only module entitled to make one.
+
+### The same feature, in its isolated sample
+
+![The feed sample running on Android and iOS](docs/images/sample-feed.png)
+
+Three deterministic articles from `fixtures/feed`, and no tab bar — because the sample's graph
+contains one feature. Same presentation code as the screen above; different composition root.
+
+![The article sample running on Android and iOS](docs/images/sample-article.png)
+
+![The bookmarks sample running on Android and iOS](docs/images/sample-bookmarks.png)
+
+The article and bookmarks samples, each on both platforms. Every screenshot in this section is the
+same build a developer runs during the day — not a demo mode inside the production app.
+
 ## Rules that produce the isolation
 
 ```text
@@ -187,8 +217,13 @@ Build, install and launch one of them on a simulator without opening Xcode — t
 
 In Android Studio the KMP plugin derives its own iOS run configurations from the single Xcode file
 recorded in `.idea/xcode.xml`; pointing that at `KmpArchitect.xcworkspace` gives all four schemes
-instead of only the production one. The checked-in `.idea/runConfigurations/` wrap the script above
-and work regardless of the plugin — same four entries, `iOS Feed Sample` and friends.
+instead of only the production one.
+
+Three of them are also checked in under `.idea/runConfigurations/` — `FeedSample`, `ArticleSample`
+and `BookmarksSample`, each bound to its Xcode scheme, so a fresh clone lists the samples without
+anyone configuring them. `KmpArchitectSampleApp` comes from the workspace itself. These are native
+Apple run configurations and need the IDE's Apple support; on a host without it, the script above is
+the equivalent.
 
 Note for non-macOS hosts: Apple link and test tasks are silently **skipped** on Linux while Gradle
 still reports `BUILD SUCCESSFUL`. Treat a green Linux build as evidence of nothing on iOS. The iOS

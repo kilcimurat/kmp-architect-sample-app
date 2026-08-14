@@ -112,7 +112,7 @@ nav.series a{display:block;margin:6px 0;}
 
   <p>Editing a line and rebuilding, same machine, median of repeated runs:</p>
 
-  <pre><code>Scenario              Production app   Feed sample        Bookmarks sample<br>--------------------  --------------   ----------------   ----------------<br>cold build                 236 tasks              125                125<br>no change                   20 tasks                9                  9<br>presentation edit           24 tasks               13                 13<br>data edit                   24 tasks    9 - unchanged      9 - unchanged<br>design-system edit          24 tasks               13                 13</code></pre>
+  <pre><code>Scenario              Production app   Feed sample        Bookmarks sample<br>--------------------  --------------   ----------------   ----------------<br>cold build                 236 tasks              125                125<br>no change                   20 tasks                9                  9<br>presentation edit           24 tasks               13                 13<br>data edit                   24 tasks    9 - unchanged      9 - unchanged<br>design-system edit          24 tasks               13                 13</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/docs/02-benchmarks.md">02-benchmarks.md</a> — method, host and raw repetitions</p>
 
   <figure><img src="../images/fig-tasks-per-edit.png" alt="Grouped bar chart of executed Gradle tasks, production app versus feature sample, for a cold build and four warm scenarios."><figcaption>Executed Gradle tasks per edit. Median of 3 cold and 5 warm runs. The panels have separate scales — a

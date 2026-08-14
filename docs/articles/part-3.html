@@ -94,7 +94,7 @@ nav.series a{display:block;margin:6px 0;}
     does it an unpredictable number of times.
   </p>
   <p>Orchestration stays in the ViewModel, where it can suspend. The <em>completed result</em> becomes an event:</p>
-  <pre><code>private fun refresh() {<br>    viewModelScope.launch {<br>        sendEvent(FeedEvent.RefreshStarted)<br>        val notice = when (refreshFeed()) {<br>            Refreshed -&gt; null<br>            Offline   -&gt; FeedNotice.Offline<br>            is Failed -&gt; FeedNotice.RefreshFailed<br>        }<br>        sendEvent(FeedEvent.RefreshFinished(notice))<br>    }<br>}</code></pre>
+  <pre><code>private fun refresh() {<br>    viewModelScope.launch {<br>        sendEvent(FeedEvent.RefreshStarted)<br>        val notice = when (refreshFeed()) {<br>            Refreshed -&gt; null<br>            Offline   -&gt; FeedNotice.Offline<br>            is Failed -&gt; FeedNotice.RefreshFailed<br>        }<br>        sendEvent(FeedEvent.RefreshFinished(notice))<br>    }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/presentation/feed/src/commonMain/kotlin/com/mkilci/kmparchitect/presentation/feed/viewmodel/FeedViewModel.kt">FeedViewModel.kt</a></p>
   <p>
     Note what is mapped: a <strong>domain</strong> result, not an HTTP status. <code>Offline</code>
@@ -204,7 +204,7 @@ nav.series a{display:block;margin:6px 0;}
     that reads Kotlin sources; these are the MVI rules it carries.
   </p>
   <p><strong>A reducer must be pure.</strong> The check extracts <code>reduce</code> bodies and looks for what makes them impure:</p>
-  <pre><code>private val reducerForbidden = listOf(<br>    ImportRule("viewModelScope", "A reducer must not start coroutines."),<br>    ImportRule("Repository",     "A reducer must not call repositories."),<br>    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),<br>    ImportRule("sendEffect",     "A reducer must not emit effects."),<br>    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),<br>)</code></pre>
+  <pre><code>private val reducerForbidden = listOf(<br>    ImportRule("viewModelScope", "A reducer must not start coroutines."),<br>    ImportRule("Repository",     "A reducer must not call repositories."),<br>    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),<br>    ImportRule("sendEffect",     "A reducer must not emit effects."),<br>    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a> — five more markers there</p>
   <p><strong>An effect must not live in a state holder:</strong></p>
   <pre><code>private val effectInStateHolder = Regex("""MutableStateFlow\s*&lt;[^&gt;]*Effect""")</code></pre>

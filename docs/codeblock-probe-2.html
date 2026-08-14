@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Finding the HTML form of a code block that survives an import.">
+<title>Four Ways to Write a Code Block</title>
+<style>body{font-family:Georgia,serif;max-width:680px;margin:40px auto;padding:0 20px;line-height:1.6}
+pre{background:#f6f7f8;border:1px solid #ddd;padding:14px;overflow-x:auto;white-space:pre}
+pre code{font-family:ui-monospace,Menlo,monospace;font-size:13px}</style></head><body>
+<article>
+<h1>Four Ways to Write a Code Block</h1>
+<p>The same Kotlin snippet, emitted four different ways, to find out which one keeps its line breaks
+when a publishing platform imports the page. A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+<h2>Variant A — pre and code, raw newlines</h2>
+<p>A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+<pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
+    module {
+        single&lt;FeedRepository&gt; { FakeFeedRepository() }
+    },
+)</code></pre>
+<h2>Variant B — pre and code, explicit break tags</h2>
+<p>A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+<pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(<br>&nbsp;&nbsp;&nbsp;&nbsp;module {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;single&lt;FeedRepository&gt; { FakeFeedRepository() }<br>&nbsp;&nbsp;&nbsp;&nbsp;},<br>)</code></pre>
+<h2>Variant C — pre alone, raw newlines</h2>
+<p>A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+<pre>fun sampleFeedModules(): List&lt;Module&gt; = listOf(
+    module {
+        single&lt;FeedRepository&gt; { FakeFeedRepository() }
+    },
+)</pre>
+<h2>Variant D — pre and code, one div per line</h2>
+<p>A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+<pre><code><div>fun sampleFeedModules(): List&lt;Module&gt; = listOf(</div><div>&nbsp;&nbsp;&nbsp;&nbsp;module {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;single&lt;FeedRepository&gt; { FakeFeedRepository() }</div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>)</div></code></pre>
+<h2>Result</h2>
+<p>Whichever variant still shows five lines after the import is the one to use. A composition root selects which implementations are live. In an isolated sample that selection is narrow on purpose: the feature's presentation module, its use cases, and deterministic fixtures for its ports. Nothing from the data layer, nothing from the application root, and nothing from another feature. </p>
+</article></body></html>

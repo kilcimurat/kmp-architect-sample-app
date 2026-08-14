@@ -12,9 +12,15 @@ This repository is a three-feature reference implementation extracted from it �
 in an afternoon, complete enough to run the same gates on both platforms. Every number below comes
 from *this* repository and is reproducible here.
 
-**The write-up:** [A Smaller Build](https://kilcimurat.github.io/kmp-architect-sample-app/) — three
-articles on why the topology is shaped this way, how the build proves it on both platforms, and what
-it takes to make MVI rules enforceable instead of aspirational.
+**The write-up** — three articles on why the topology is shaped this way, how the build proves it on
+both platforms, and what it takes to make MVI rules enforceable instead of aspirational:
+
+1. [Your Feature Should Not Need Your App to Build](https://medium.com/@kilcimurat776/your-feature-should-not-need-your-app-to-build-9a7115b00fca)
+   — build isolation as the goal, layering as the means, and the numbers that say whether it worked
+2. [Folder Shape Is Not Evidence](https://medium.com/@kilcimurat776/folder-shape-is-not-evidence-25f2805b45f1)
+   — making a Gradle build prove that a KMP feature is isolated, on Android *and* iOS
+3. **Auditable MVI** — separating Action, Event and Effect, and making the separation a build failure
+   instead of a code-review habit *(publishing shortly)*
 
 ## The claim, measured
 

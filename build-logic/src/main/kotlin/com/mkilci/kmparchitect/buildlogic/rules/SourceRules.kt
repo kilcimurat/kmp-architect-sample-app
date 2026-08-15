@@ -15,7 +15,16 @@ data class SourceFile(
  */
 object SourceRules {
 
+    /** A package prefix matched against actual `import` statements. */
     private data class ImportRule(val marker: String, val why: String)
+
+    /**
+     * A fragment matched against source text rather than against an import. Used where the thing
+     * being forbidden is not importable — `.add(`, `Clock.`, `sendEffect` — so the import-statement
+     * matcher below cannot see it. Substring matching is the weaker tool of the two: comments are
+     * stripped before it runs, but it is still a heuristic, which is why every marker carries a test.
+     */
+    private data class BodyMarker(val marker: String, val why: String)
 
     private val domainForbidden = listOf(
         ImportRule("androidx.compose", "Domain is pure Kotlin; Compose belongs to presentation."),
@@ -69,21 +78,26 @@ object SourceRules {
         "platform.UIKit",
     )
 
-    /** Markers that make a reducer impure. Reducers may be re-invoked by `MutableStateFlow.update`. */
+    /**
+     * Markers that make a reducer impure. Reducers may be re-invoked by `MutableStateFlow.update`.
+     *
+     * These are [BodyMarker]s, not imports: a reducer that calls `repository.load()` imports
+     * nothing new, so only the body text gives it away.
+     */
     private val reducerForbidden = listOf(
-        ImportRule("viewModelScope", "A reducer must not start coroutines."),
-        ImportRule("launch(", "A reducer must not start coroutines."),
-        ImportRule("runBlocking", "A reducer must not block."),
-        ImportRule("Repository", "A reducer must not call repositories."),
-        ImportRule("repository.", "A reducer must not call repositories."),
-        ImportRule("getKoin", "A reducer must not resolve dependencies."),
-        ImportRule("Clock.", "A reducer must not read the clock; pass time in through the event."),
-        ImportRule("Random", "A reducer must be deterministic."),
-        ImportRule("sendEffect", "A reducer must not emit effects."),
-        ImportRule("navigate", "A reducer must not navigate."),
-        ImportRule(".add(", "A reducer must not mutate a collection owned by the previous state."),
-        ImportRule(".remove(", "A reducer must not mutate a collection owned by the previous state."),
-        ImportRule(".clear(", "A reducer must not mutate a collection owned by the previous state."),
+        BodyMarker("viewModelScope", "A reducer must not start coroutines."),
+        BodyMarker("launch(", "A reducer must not start coroutines."),
+        BodyMarker("runBlocking", "A reducer must not block."),
+        BodyMarker("Repository", "A reducer must not call repositories."),
+        BodyMarker("repository.", "A reducer must not call repositories."),
+        BodyMarker("getKoin", "A reducer must not resolve dependencies."),
+        BodyMarker("Clock.", "A reducer must not read the clock; pass time in through the event."),
+        BodyMarker("Random", "A reducer must be deterministic."),
+        BodyMarker("sendEffect", "A reducer must not emit effects."),
+        BodyMarker("navigate", "A reducer must not navigate."),
+        BodyMarker(".add(", "A reducer must not mutate a collection owned by the previous state."),
+        BodyMarker(".remove(", "A reducer must not mutate a collection owned by the previous state."),
+        BodyMarker(".clear(", "A reducer must not mutate a collection owned by the previous state."),
     )
 
     private val effectInStateHolder = Regex("""MutableStateFlow\s*<[^>]*Effect""")
@@ -167,8 +181,9 @@ object SourceRules {
 
     private fun reducerViolations(file: SourceFile): List<Violation> =
         ReducerExtractor.extract(file.content).flatMap { reducer ->
+            val code = withoutComments(reducer.body)
             reducerForbidden.mapNotNull { rule ->
-                if (!reducer.body.contains(rule.marker)) return@mapNotNull null
+                if (!code.contains(rule.marker)) return@mapNotNull null
                 Violation(
                     rule = "impure-reducer",
                     subject = "${file.projectPath} ${file.relativePath}:${reducer.line}",
@@ -186,6 +201,18 @@ object SourceRules {
             val trimmed = line.trimStart()
             trimmed.startsWith("import ") && trimmed.removePrefix("import ").trimStart().startsWith(marker)
         }
+
+    private val blockComment = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL)
+
+    /**
+     * Drops comments before a [BodyMarker] is matched, for the same reason [importsMarker] insists
+     * on a real import statement: the comment explaining why a reducer must not call a repository
+     * is not itself a reducer calling a repository.
+     */
+    private fun withoutComments(body: String): String =
+        body.replace(blockComment, " ")
+            .lineSequence()
+            .joinToString("\n") { line -> line.substringBefore("//") }
 
     private fun resolvesRepositoryFromComposable(content: String): Boolean =
         content.contains("getKoin().get<") && content.contains("Repository>") ||

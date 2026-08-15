@@ -214,6 +214,25 @@ class SourceRulesTest {
     }
 
     @Test
+    fun a_comment_inside_a_reducer_explaining_the_rule_is_not_a_violation() {
+        val content = """
+            data object Started : FeedEvent {
+                override fun reduce(oldState: FeedState): FeedState {
+                    // The repository call this used to make lives in the ViewModel now.
+                    /* Nor may it read Clock.System.now() or emit sendEffect(...). */
+                    return oldState.copy(isLoading = true)
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            emptyList(),
+            rulesFired(file(":presentation:feed", content = content)),
+            "documenting a forbidden marker is not performing it",
+        )
+    }
+
+    @Test
     fun the_pure_reducers_this_repository_actually_ships_pass() {
         val content = """
             sealed interface FeedEvent : ScreenEvent<FeedState> {

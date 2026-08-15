@@ -23,7 +23,9 @@ both platforms, and what it takes to make MVI rules enforceable instead of aspir
    — separating Action, Event and Effect, and making the separation a build failure instead of a
    code-review habit
 
-All three also read as one set in [`docs/index.html`](docs/index.html), with the figures inline.
+All three also read as one set, with the figures inline, at
+[kilcimurat.github.io/kmp-architect-sample-app](https://kilcimurat.github.io/kmp-architect-sample-app/)
+(source in [`docs/`](docs/)).
 
 ## The claim, measured
 

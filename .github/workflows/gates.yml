@@ -28,16 +28,16 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Structural gates
         run: ./gradlew architectureCheck isolationCheck buildLogicTest --stacktrace
@@ -62,7 +62,7 @@ jobs:
       # is a downloadable artifact away from being noticed rather than a claim nobody rechecks.
       - name: Upload architecture reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: architecture-reports
           path: build/reports/architecture/

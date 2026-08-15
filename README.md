@@ -19,8 +19,11 @@ both platforms, and what it takes to make MVI rules enforceable instead of aspir
    — build isolation as the goal, layering as the means, and the numbers that say whether it worked
 2. [Folder Shape Is Not Evidence](https://medium.com/@kilcimurat776/folder-shape-is-not-evidence-25f2805b45f1)
    — making a Gradle build prove that a KMP feature is isolated, on Android *and* iOS
-3. **Auditable MVI** — separating Action, Event and Effect, and making the separation a build failure
-   instead of a code-review habit *(publishing shortly)*
+3. [Auditable MVI](https://medium.com/@kilcimurat776/auditable-mvi-1862a1430931)
+   — separating Action, Event and Effect, and making the separation a build failure instead of a
+   code-review habit
+
+All three also read as one set in [`docs/index.html`](docs/index.html), with the figures inline.
 
 ## The claim, measured
 
@@ -56,8 +59,10 @@ Folder shape is not evidence of isolation. A resolved dependency graph is.
 ./gradlew isolationCheck      # every sample's resolved graph vs. a checked-in allowlist
 ```
 
-`architectureCheck` currently inspects 211 declared project edges, 832 external edges and 85
-production sources. It rejects forbidden layer directions, feature-to-feature edges, `api` exposure
+`architectureCheck` currently inspects 211 declared project edges, 834 external edges and 85
+production sources — the counts printed by the task itself into
+`build/reports/architecture/architecture-check.txt`, and by the CI job on every push. It rejects
+forbidden layer directions, feature-to-feature edges, `api` exposure
 that is not justified in `config/api-allowlist.txt`, fixtures consumed by anything but their own
 feature's tests and sample, ViewModels retaining native controllers, repository lookup from
 composables, and effects stored in replaying state. Every rule has a rejection fixture beside it in
@@ -256,9 +261,12 @@ Nothing in this repository claims a result that was not run.
 - `build/reports/architecture/` — generated edge and resolved-graph reports
 - `build/benchmark-results.tsv` — raw benchmark repetitions
 
-There is no CI in this repository: it is a sample application about an architecture, not a product,
-so the gates are local Gradle tasks. Run the two commands above before trusting any structural
-change.
+Both gates run in CI on every push and pull request
+([`.github/workflows/gates.yml`](.github/workflows/gates.yml)), on a **Linux** runner — which is
+only possible because of the property described above: `isolationCheck` resolves iOS dependency
+metadata instead of invoking the Apple toolchain, so its iOS half is as valid there as on a Mac.
+Framework linking, the Xcode host builds and the iOS unit tests are not covered by that job; those
+need macOS or a local run. Run the two commands above before trusting any structural change.
 
 ## License
 

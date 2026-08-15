@@ -11,7 +11,7 @@ composition-root and feature-isolation boundaries. `architectureCheck`, `isolati
 multiplatform `check`, production/sample Android builds, Kotlin iOS framework links and four real
 Xcode host builds pass.
 
-The architecture gate inspected 211 declared project edges, 832 declared external edges and 85
+The architecture gate inspected 211 declared project edges, 834 declared external edges and 85
 production source files with zero violations. Resolved sample runtime graphs contain 9 projects for
 Feed, 10 for Article and 9 for Bookmarks, with no production data module, forbidden external
 dependency, unexpected project or stale waiver.
@@ -73,7 +73,7 @@ Generated report: `build/reports/architecture/architecture-check.txt`
 
 ```text
 project edges inspected:  211
-external edges inspected: 832
+external edges inspected: 834
 sources inspected: 85
 violations: 0
 ```
@@ -305,12 +305,18 @@ flag was active for both runs. `--warning-mode all` showed no Gradle 10 deprecat
 migration on a schedule. Rationale and revisit conditions are in
 `docs/03-isolated-projects.md`.
 
-### CI removed
+### CI removed, then restored
 
-`.github/workflows/ci.yml` was deleted as a deliberate scope decision: the repository is a sample
-application whose subject is the architecture, and it is not hosted on GitHub. Nothing else in the
-repository referenced it. The architecture and isolation gates remain as local Gradle tasks and the
-tests remain in place; only automatic enforcement is gone.
+`.github/workflows/ci.yml` was originally deleted as a deliberate scope decision: the repository is
+a sample application whose subject is the architecture, and at the time it was not hosted on GitHub.
+
+That premise expired when the repository was published. `.github/workflows/gates.yml` (2026-08-15)
+restores automatic enforcement on `ubuntu-latest`: `architectureCheck`, `isolationCheck`,
+`buildLogicTest`, the Android unit tests, and the production and three sample Android assemblies,
+with `build/reports/architecture/` uploaded as an artifact so the counts quoted in the README have a
+source rather than a memory. The Linux host is not a compromise for the isolation gate specifically
+— it resolves iOS dependency metadata rather than invoking the Apple toolchain — but framework
+linking, the Xcode host builds and the iOS unit tests remain outside it and still require macOS.
 
 One Gradle 10 deprecation remains and is not actionable here: "Using a Project object as a
 dependency notation", raised from AGP internals
@@ -323,9 +329,10 @@ build scripts.
   the whole configuration phase is roughly one second and is skipped entirely on a configuration
   cache hit. The root architecture plugin remains the only compatibility blocker, and the migration
   design is retained for the day the trade changes.
-- There is no CI. Every gate now depends on someone running it locally, and the iOS build gates in
-  particular cannot run on the Linux development host — where Apple link and test tasks are skipped
-  while Gradle still reports success. The iOS isolation gate is the exception and does run there.
+- CI covers the structural gates but not the Apple toolchain. The Linux job runs both gates, the
+  tests and the Android assemblies, and its iOS isolation half is genuine. Framework linking, the
+  Xcode host builds and the iOS unit tests still depend on someone running them on macOS — on Linux
+  those tasks are skipped while Gradle reports success, so their absence from CI is silent.
 - Xcode 26.2 emits an `IDERunDestination` metadata warning for generic destinations even though all
   four builds succeed.
 - Gradle reports one feature incompatible with Gradle 10. It was traced to AGP internals rather than

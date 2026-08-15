@@ -245,7 +245,7 @@ nav.series a{display:block;margin:6px 0;}
   </p>
   <p>
     The tempting move is to schedule the migration. Instead the prize was measured first, on a 128-core
-    machine: the entire configuration phase is worth about <strong>one second</strong>, and it is skipped
+    machine: the entire configuration phase is worth about <strong>one second</strong> there, and it is skipped
     outright on a configuration-cache hit — which is the normal state of an edit-compile loop.
   </p>
   <p>
@@ -253,10 +253,19 @@ nav.series a{display:block;margin:6px 0;}
     blocker is known and the migration design is written down. It is a decision with a number attached rather
     than an open item that quietly ages.
   </p>
+  <p>
+    One caveat on that number, since the rest of this series is about not dressing measurements up: it comes
+    from a 128-core Linux machine, while the build timings in Part 1 come from a 12-core laptop. A smaller
+    host configures more slowly, so the prize there is larger than one second — still behind a
+    configuration-cache hit, but the decision is worth re-measuring on the machine your team actually uses.
+  </p>
 
   <h2>What this costs you</h2>
   <ul>
-    <li><strong>The gates are only as good as whoever runs them.</strong> This repository has no CI — a deliberate scope decision and a real hole. In a product, those two commands are the first thing on a runner. Only the Apple link and Xcode gates need macOS.</li>
+    <li><strong>The gates are only as good as whoever runs them.</strong> Both commands run on every push, on an
+      <em>Ubuntu</em> runner — the practical payoff of the property above, since the iOS half never asks the
+      Apple toolchain anything. Framework linking, the Xcode host builds and the iOS tests are what still
+      need macOS, and this repository leaves those to a local run.</li>
     <li><strong>Cross-project configuration access is spent.</strong> It is what blocks Isolated Projects today.</li>
     <li><strong>Rule maintenance is ongoing.</strong> Source rules are text matching, and text matching has false positives. Every rule carries unit tests including negative cases, so tightening one is a normal change rather than an archaeology project.</li>
   </ul>

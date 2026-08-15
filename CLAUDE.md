@@ -125,8 +125,9 @@ Validation depends on the active host:
 - On macOS, link every required Kotlin framework and build the real production/sample Xcode schemes;
   framework compilation alone is not native-executable evidence.
 - On Linux, Apple link/test tasks can be skipped while Gradle still reports success. Treat only the
-  compiled klib as evidence and run every native iOS gate on macOS. There is no CI in this
-  repository, so nothing catches this automatically — a green Linux build proves nothing about iOS.
+  compiled klib as evidence and run every native iOS gate on macOS. CI runs on Linux and covers the
+  two structural gates, the tests and the Android assemblies — deliberately not the Apple link or
+  Xcode host builds, because a green Linux build proves nothing about those.
 - When an emulator/simulator exists, install and exercise the hosts. Record unavailable runtime
   interaction explicitly instead of inferring it from a build.
 

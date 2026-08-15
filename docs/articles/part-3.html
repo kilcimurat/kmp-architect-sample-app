@@ -150,8 +150,15 @@ nav.series a{display:block;margin:6px 0;}
     Each feature declares its own effect hierarchy, never merged with another’s. The collector is generic in
     the effect type on purpose:
   </p>
-  <pre><code>@Composable<br>fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F) -&gt; Unit) {<br>    LaunchedEffect(effects) { effects.collect(onEffect) }<br>}</code></pre>
+  <pre><code>@Composable<br>fun &lt;F : ScreenEffect&gt; HandleEffects(effects: Flow&lt;F&gt;, onEffect: (F) -&gt; Unit) {<br>    val currentOnEffect by rememberUpdatedState(onEffect)<br>    val lifecycle = LocalLifecycleOwner.current.lifecycle<br>    LaunchedEffect(effects, lifecycle) {<br>        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {<br>            effects.collect { effect -&gt; currentOnEffect(effect) }<br>        }<br>    }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/navigation/src/commonMain/kotlin/com/mkilci/kmparchitect/core/navigation/HandleEffects.kt">HandleEffects.kt</a></p>
+  <p>
+    <code>STARTED</code>, not the life of the composition — because the composition outlives the screen being
+    visible. Collect for its whole life and a navigation command arrives at a host that has already stopped:
+    the opening bug of this article, approached from the other side. Pausing is safe here for exactly the
+    reason the transport is a channel and not a state holder — an effect emitted while stopped waits in the
+    buffer and is delivered on the next <code>STARTED</code>. Not dropped, and not replayed.
+  </p>
   <p>
     Nothing narrows to <code>ScreenEffect</code>, so no collector needs a cast. <strong>The moment a cast
     appears at a graph boundary, exhaustiveness is gone</strong> and an effect can be added that silently
@@ -204,8 +211,15 @@ nav.series a{display:block;margin:6px 0;}
     that reads Kotlin sources; these are the MVI rules it carries.
   </p>
   <p><strong>A reducer must be pure.</strong> The check extracts <code>reduce</code> bodies and looks for what makes them impure:</p>
-  <pre><code>private val reducerForbidden = listOf(<br>    ImportRule("viewModelScope", "A reducer must not start coroutines."),<br>    ImportRule("Repository",     "A reducer must not call repositories."),<br>    ImportRule("Clock.",         "A reducer must not read the clock; pass time in through the event."),<br>    ImportRule("sendEffect",     "A reducer must not emit effects."),<br>    ImportRule(".add(",          "A reducer must not mutate a collection owned by the previous state."),<br>)</code></pre>
-  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a> — five more markers there</p>
+  <pre><code>private val reducerForbidden = listOf(<br>    BodyMarker("viewModelScope", "A reducer must not start coroutines."),<br>    BodyMarker("Repository",     "A reducer must not call repositories."),<br>    BodyMarker("Clock.",         "A reducer must not read the clock; pass time in through the event."),<br>    BodyMarker("sendEffect",     "A reducer must not emit effects."),<br>    BodyMarker(".add(",          "A reducer must not mutate a collection owned by the previous state."),<br>)</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/rules/SourceRules.kt">SourceRules.kt</a> — eight more markers there</p>
+  <p>
+    <code>BodyMarker</code>, not the <code>ImportRule</code> of <a href="part-2.html">Part 2</a> — and the distinction
+    is the point. A reducer that calls <code>repository.load()</code> imports nothing new, so the import matcher
+    cannot see it. Substring matching is the weaker of the two tools, so it gets the same courtesy the import
+    matcher gets: comments are stripped before it runs, because the comment explaining why a reducer must not
+    call a repository is not itself a reducer calling a repository.
+  </p>
   <p><strong>An effect must not live in a state holder:</strong></p>
   <pre><code>private val effectInStateHolder = Regex("""MutableStateFlow\s*&lt;[^&gt;]*Effect""")</code></pre>
   <p>— failing with a message that explains the actual bug rather than citing a rule number.</p>

@@ -15,13 +15,14 @@ from *this* repository and is reproducible here.
 **The write-up** — three articles on why the topology is shaped this way, how the build proves it on
 both platforms, and what it takes to make MVI rules enforceable instead of aspirational:
 
-1. [Your Feature Should Not Need Your App to Build](https://medium.com/@kilcimurat776/your-feature-should-not-need-your-app-to-build-9a7115b00fca)
-   — build isolation as the goal, layering as the means, and the numbers that say whether it worked
+1. [I Stopped Building My App to Work on It](https://medium.com/@kilcimurat776/your-feature-should-not-need-your-app-to-build-9a7115b00fca)
+   — your feature should not need your app to build: build isolation as the goal, layering as the
+   means, and the numbers that say whether it worked
 2. [Folder Shape Is Not Evidence](https://medium.com/@kilcimurat776/folder-shape-is-not-evidence-25f2805b45f1)
    — making a Gradle build prove that a KMP feature is isolated, on Android *and* iOS
-3. [Auditable MVI](https://medium.com/@kilcimurat776/auditable-mvi-1862a1430931)
-   — separating Action, Event and Effect, and making the separation a build failure instead of a
-   code-review habit
+3. [Your Navigation Bug Has a Delay Fuse](https://medium.com/@kilcimurat776/auditable-mvi-1862a1430931)
+   — auditable MVI: separating Action, Event and Effect, and making the separation a build failure
+   instead of a code-review habit
 
 All three also read as one set, with the figures inline, at
 [kilcimurat.github.io/kmp-architect-sample-app](https://kilcimurat.github.io/kmp-architect-sample-app/)

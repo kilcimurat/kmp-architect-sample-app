@@ -161,12 +161,12 @@ nav.series a{display:block;margin:6px 0;}
   <p>
     When it bites, it names names. Real output from adding <code>:data:feed</code> to the feed sample:
   </p>
-  <pre><code><span class="bad">isolationCheck FAILED</span><br>  ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)<br>    unexpected project on the resolved graph: :core:database<br>    unexpected project on the resolved graph: :data:feed<br>    forbidden external dependency reached the sample: app.cash.sqldelight:native-driver<br>  allowlist: sample/feed/isolation-allowlist.txt</code></pre>
+  <pre><code><span class="bad">isolationCheck FAILED</span><br>  ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)<br>    unexpected project on the resolved graph: :core:common<br>    unexpected project on the resolved graph: :core:database<br>    unexpected project on the resolved graph: :core:network<br>    unexpected project on the resolved graph: :data:articlestore<br>    unexpected project on the resolved graph: :data:feed<br>    forbidden external dependency reached the sample: app.cash.sqldelight:native-driver<br>    ... 37 more, the rest of SQLDelight and Ktor and the JSON parser<br>  allowlist: sample/feed/isolation-allowlist.txt</code></pre>
 
   <figure><img src="../images/fig-declared-vs-resolved.png" alt="A single declared dependency on the data feed module expands into five projects and the external data stack once the classpath is resolved."><figcaption>One declared edge, five resolved projects.</figcaption></figure>
 
   <p>
-    One declared edge. Five unexpected projects. That gap is the whole argument for resolving a classpath
+    One declared edge. Five unexpected projects and thirty-eight forbidden external coordinates. That gap is the whole argument for resolving a classpath
     instead of reading build files — no reviewer sees four of those five in the diff.
   </p>
 

@@ -89,10 +89,14 @@ platforms, which one shared allowlist per sample now asserts instead of assuming
 ```text
 isolationCheck FAILED
   ios: :sample:feed:shared (iosSimulatorArm64CompileKlibraries)
+    unexpected project on the resolved graph: :core:common
     unexpected project on the resolved graph: :core:database
+    unexpected project on the resolved graph: :core:network
+    unexpected project on the resolved graph: :data:articlestore
     unexpected project on the resolved graph: :data:feed
     forbidden external dependency reached the sample: app.cash.sqldelight:native-driver
-    allowlist: sample/feed/isolation-allowlist.txt
+    ... 37 more, the rest of SQLDelight and Ktor and the JSON parser
+  allowlist: sample/feed/isolation-allowlist.txt
 ```
 
 Widening a sample is therefore a reviewable diff to `sample/<feature>/isolation-allowlist.txt`, not a

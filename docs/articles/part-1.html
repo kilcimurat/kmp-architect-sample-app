@@ -75,6 +75,23 @@ nav.series a{display:block;margin:6px 0;}
     This series is about a KMP application built the other way round: <strong>build isolation is the goal,
     and layering is the means.</strong>
   </p>
+  <p>
+    Per-feature demo apps are not a new idea. Large Android codebases have used them for years, for exactly
+    this reason: you do not want to run the whole application to see a small change. Two things I could not
+    find anywhere, though, and they are what this repository is for.
+  </p>
+  <p>
+    The first is <strong>the same property on both platforms</strong> — one KMP codebase where a feature
+    builds and runs on its own on Android <em>and</em> on iOS. The modular KMP write-ups I found stop at the
+    module graph; none of them ships a per-feature app you can actually launch, least of all on a simulator.
+  </p>
+  <p>
+    The second is <strong>a check that the property still holds.</strong> The architecture tools in this
+    space — ArchUnit, Konsist and friends — read declared structure and source text, which is the half that
+    a code review can already see. None of them resolves what an iOS framework actually links. So the part
+    of this repository worth stealing is not the demo apps; it is that a Gradle gate fails, by name and on
+    both platforms, the day one of them stops being isolated.
+  </p>
 
   <h2>Where this comes from</h2>
   <p>
@@ -219,6 +236,31 @@ nav.series a{display:block;margin:6px 0;}
     <code>FeedEffect.OpenArticle(id)</code> and has no idea what happens next; the route graph takes an
     <code>onOpenArticle</code> parameter. Production binds it to the article feature, the sample to a
     placeholder. <a href="part-3.html">Part 3</a> is about that seam.
+  </p>
+
+  <h2>Four teams, one repository</h2>
+  <p>
+    One developer saving fifteen Gradle tasks is not why this topology exists. Several teams shipping into
+    one application is.
+  </p>
+  <p>
+    Put four teams in one repository and the build quietly becomes shared property. Another team's data
+    layer is on your critical path; their SDK is in your APK and their framework is linked into your
+    simulator run; your loop gets slower for work you did not do and cannot review. The bold row in the
+    table above is the multi-team number, not a personal one: <strong>the production data layer changes —
+    someone else's work — and a feature sample's graph does not move.</strong>
+  </p>
+  <p>Three rules carry that, and none of them is a convention anyone has to remember:</p>
+  <ul>
+    <li><strong>No feature depends on another feature.</strong> A team cannot couple itself to another team's code, quietly or otherwise. The edge fails the build by name, on both platforms.</li>
+    <li><strong>Cross-feature decisions live in exactly one module.</strong> Deciding that two features share a tab bar is a decision about two teams; <code>app/shared</code> is the only place entitled to make it, so it has one owner and one review.</li>
+    <li><strong>Each sample's graph is a checked-in allowlist.</strong> Widening what a feature may reach is a reviewable diff in that feature's own file — not something that surfaces two quarters later as everyone's slower build.</li>
+  </ul>
+  <p>
+    The per-feature fixtures finish the picture: a team develops and demos its screen without another
+    team's backend, database or data layer, offline and reproducibly, on a device and on a simulator. That
+    is what "several teams, one repository" is supposed to mean, and it is checkable rather than
+    aspirational.
   </p>
 
   <h2>What isolation does not fix</h2>

@@ -192,6 +192,13 @@ nav.series a{display:block;margin:6px 0;}
     Each root is excluded from its own graph, so the projects underneath must match on both platforms — one
     file asserts both. The single-project difference is the Android executable host.
   </p>
+  <p>
+    The reason to spend a second task per sample on this is not tidiness. In a repository several teams
+    share, the boundary worth enforcing is not "my module compiles" but <strong>"my feature still builds
+    without yours"</strong> — and on KMP that has to hold twice. Check Android only and an iOS-side leak
+    sits undetected until some other team's framework starts linking a feature nobody meant to give it,
+    which is exactly the kind of coupling that is cheap to prevent and expensive to unwind.
+  </p>
   <p>Those graphs are not a theory about what would link. All three samples run:</p>
 
   <figure>

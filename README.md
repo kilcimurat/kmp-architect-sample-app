@@ -1,7 +1,17 @@
 # KMP Architect Sample App
 
 A feature-isolated Kotlin Multiplatform architecture for Android and iOS: **a developer working on
-one feature builds and runs only that feature, never the whole application.**
+one feature builds and runs only that feature, never the whole application — on both platforms.**
+
+Per-feature demo apps are an old idea in large Android codebases. Two things are harder to find, and
+they are what this repository is for: the same property **on both platforms** — one KMP codebase where
+a feature builds and runs on its own on Android *and* iOS — and **a check that it still holds**, since
+the architecture tools in this space read declared structure or source text and none of them resolves
+what an iOS framework links.
+
+The target is the repository several teams share: each team builds, runs and ships its own feature on
+Android and iOS without the app root, without another team's data layer, and without waiting for
+anyone else's build.
 
 Clean layering, MVI and typed navigation are here as means, not as the goal. The goal is a smaller
 development loop, and the repository is built so that claim can be checked by a machine rather than
@@ -156,7 +166,9 @@ sample/<feature> ──► presentation + domain + fixtures of that feature only
 ```
 
 - **`sample → data` is forbidden.** The load-bearing rule; everything above is downstream of it.
-- **No feature depends on another feature.** Cross-feature decisions belong to `app/shared` alone.
+- **No feature depends on another feature.** Cross-feature decisions belong to `app/shared` alone. This
+  is the team boundary as much as the module boundary: one team cannot couple itself to another team's
+  code without failing the build by name, on Android and on iOS.
 - **`implementation` by default.** Every `api` edge needs a recorded justification, because one
   unjustified re-export restores the recompilation cascade the module split was meant to remove.
 - **No aggregating DI codegen in the feature build path.** This is why the container is runtime

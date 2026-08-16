@@ -182,6 +182,13 @@ nav.series a{display:block;margin:6px 0;}
     Both features emit an open-article request; neither depends on the article feature. The isolated sample
     binds the same parameter to a placeholder screen. Same feature code, three consumers, zero conditionals.
   </p>
+  <p>
+    Read <code>onOpenArticle</code> as a contract between <em>teams</em>, not only between modules. The feed
+    team declares what its screen can ask for; whoever owns navigation for the whole application decides
+    what answers it. Neither edits the other's code to change its mind, and neither can reach into the
+    other's graph — which is what lets two features be built, run and shipped by different people at the
+    same time, on both platforms.
+  </p>
 
   <h2>Where DI ownership sits</h2>
   <p>

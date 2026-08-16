@@ -38,6 +38,22 @@ All three also read as one set, with the figures inline, at
 [kilcimurat.github.io/kmp-architect-sample-app](https://kilcimurat.github.io/kmp-architect-sample-app/)
 (source in [`docs/`](docs/)).
 
+## Before you read the code
+
+This repository assumes an Android or Kotlin Multiplatform codebase with more than one Gradle
+module: Gradle and its convention plugins, Compose, and dependency injection. It explains what is
+specific to this architecture and takes the rest as given.
+
+Five terms carry most of the weight:
+
+| Term | What it means here |
+|---|---|
+| **composition root** | The one place that decides which implementations are live. Production has one; each sample has its own, which is what makes a sample a sample. |
+| **fixture** | A hand-written fake implementation of a domain port, returning fixed data. Lives in `fixtures/<feature>`, used by that feature's tests *and* its sample. |
+| **declared vs. resolved graph** | Declared edges are what a module asked for in its build file. The resolved graph is what it actually got, transitive dependencies included. Only the second is evidence. |
+| **klib** | The Kotlin/Native library format an iOS framework is linked from. Resolving klibs is how the iOS gate sees what a framework would contain without building one. |
+| **`api` vs `implementation`** | Gradle's two ways to declare a dependency: `api` hands it on to your consumers, `implementation` keeps it to yourself. Every `api` edge widens recompilation, which is why each one needs a recorded reason. |
+
 ## The claim, measured
 
 Editing a line in a feature's `data` layer and rebuilding, on the same machine:

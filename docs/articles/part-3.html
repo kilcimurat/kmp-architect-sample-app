@@ -53,6 +53,9 @@ nav.series a{display:block;margin:6px 0;}
     Separating Action, Event and Effect — and making the separation a build failure instead of a code-review
     habit.
   </p>
+  <p>
+    <em>Assumes Kotlin coroutines, Compose and a ViewModel; MVI itself is explained as it goes.</em>
+  </p>
   
 
   <p>
@@ -81,7 +84,7 @@ nav.series a{display:block;margin:6px 0;}
   <p>Most implementations collapse this into two concepts and spend years working around the collapse:</p>
   <ul>
     <li><strong>Action</strong> — what the user did. <code>ArticleClicked</code>. Not a state change, not a navigation command.</li>
-    <li><strong>Event</strong> — a state transition. Owns a pure <code>reduce</code>.</li>
+    <li><strong>Event</strong> — a state transition. Owns a pure <code>reduce</code>: a function that takes the old state and returns the new one, and does nothing else.</li>
     <li><strong>Effect</strong> — a one-shot request to something outside the screen: navigate, share, open a dialog.</li>
   </ul>
   <p>The contract is small:</p>

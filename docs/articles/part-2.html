@@ -52,6 +52,11 @@ nav.series a{display:block;margin:6px 0;}
   <p class="dek">
     Making a Gradle build prove that a KMP feature is isolated — on Android <em>and</em> iOS.
   </p>
+  <p>
+    <em>This part is the Gradle one. If you came from the iOS side, everything below reduces to two commands
+    a build runs before it lets a change land — read it for what they check, and skip how they are
+    registered.</em>
+  </p>
   
 
   <p>
@@ -182,6 +187,11 @@ nav.series a{display:block;margin:6px 0;}
   </p>
   <p>So the check registers two tasks per sample, against one allowlist:</p>
   <pre><code>const val ANDROID_CONFIGURATION = "debugRuntimeClasspath"<br>const val IOS_CONFIGURATION     = "iosSimulatorArm64CompileKlibraries"</code></pre>
+  <p>
+    A <em>klib</em> is the Kotlin/Native library format that an iOS framework is ultimately linked from, so
+    that second configuration is the closest thing to asking “what would end up inside the framework?”
+    without building one.
+  </p>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/build-logic/src/main/kotlin/com/mkilci/kmparchitect/buildlogic/ArchitectureConventionPlugin.kt">ArchitectureConventionPlugin.kt</a></p>
 
   <figure><img src="../images/fig-two-roots-one-allowlist.png" alt="The isolation check resolves an Android runtime classpath and an iOS klib classpath against a single shared allowlist file."><figcaption>Two roots, two platforms, one allowlist.</figcaption></figure>

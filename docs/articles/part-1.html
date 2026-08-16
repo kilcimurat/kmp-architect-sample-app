@@ -52,6 +52,11 @@ nav.series a{display:block;margin:6px 0;}
   <p class="dek">
     Build isolation as the goal, layering as the means — and the numbers that say whether it worked.
   </p>
+  <p>
+    <em>Written for someone who has worked in an Android or Kotlin Multiplatform codebase with more than
+    one Gradle module. I assume Gradle, Compose and dependency injection, and explain only what is specific
+    to this architecture.</em>
+  </p>
   
 
   <p>
@@ -164,19 +169,19 @@ nav.series a{display:block;margin:6px 0;}
 
   <p>
     And it has a second-order effect that matters more than the build time. A sample <em>cannot</em> bind a
-    real repository, so it must bind something else — a deterministic fixture. Every feature ends up with a
+    real repository, so it must bind something else — a deterministic <em>fixture</em>: a hand-written fake implementation of a port, returning fixed data. Every feature ends up with a
     working, offline, reproducible development environment whether anyone planned for it or not.
   </p>
   <p>Two supporting rules do the rest:</p>
   <ul>
     <li><strong>No feature depends on another feature.</strong> Cross-feature decisions belong to the app root alone.</li>
-    <li><strong><code>implementation</code> by default.</strong> Every <code>api</code> edge re-exports its target, so an ABI change there recompiles every consumer. Allowed — but each one is recorded in a file, with a reason.</li>
+    <li><strong><code>implementation</code> by default.</strong> Gradle has two ways to declare a dependency: <code>api</code> hands it on to whoever depends on you, <code>implementation</code> keeps it to yourself. Every <code>api</code> edge re-exports its target, so an ABI change there recompiles every consumer. Allowed — but each one is recorded in a file, with a reason.</li>
   </ul>
 
   <h2>What a sample actually is</h2>
   <p>
-    Not a demo app. A <strong>composition root plus a NavHost</strong> — the only place in the feature’s
-    world where “which implementation is live” gets decided.
+    Not a demo app. A <strong>composition root plus a NavHost</strong> — the composition root being the one
+    place in the feature’s world where “which implementation is live” gets decided.
   </p>
   <pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(<br>    module {<br>        single&lt;FeedRepository&gt; {<br>            FakeFeedRepository(<br>                initialArticles = FeedFixtures.articles,<br>                refreshResults = listOf(Refreshed, Offline, Failed(RemoteUnavailable)),<br>            )<br>        }<br>        factory { ObserveFeed(get()) }<br>        factory { RefreshFeed(get()) }<br>    },<br>    feedPresentationModule,<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/SampleFeedModules.kt">SampleFeedModules.kt</a></p>

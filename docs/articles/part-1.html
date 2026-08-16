@@ -285,6 +285,34 @@ nav.series a{display:block;margin:6px 0;}
     of them at once.
   </p>
 
+  <h2>Setting this up yourself</h2>
+  <p>
+    The repository is something to lift from, not to depend on: nothing is published to a repository
+    server. Take <code>build-logic/</code> as is — the convention plugins, the rules and their tests — and
+    write the four files that describe your own topology: the two files in <code>config/</code>, one
+    <code>isolation-allowlist.txt</code> per sample, and the module list in
+    <code>settings.gradle.kts</code>. A copied allowlist is a lie about your graph.
+  </p>
+  <p>The order that works, because each step teaches the next:</p>
+  <ul>
+    <li>Include <code>build-logic</code> from <code>pluginManagement</code>, then apply <code>id("kmpa.architecture")</code> in the root build file. That single line registers the gates.</li>
+    <li>Lay out <em>one</em> feature before five. <code>domain/</code>, <code>data/</code> and <code>fixtures/</code> take <code>kmpa.kmp.library</code>; <code>presentation/</code> takes <code>kmpa.kmp.compose</code>.</li>
+    <li>Add its sample: <code>sample/&lt;feature&gt;/shared</code> with <code>kmpa.kmp.framework</code>, <code>sample/&lt;feature&gt;/androidApp</code> with <code>kmpa.android.app</code>, and an allowlist naming exactly what that sample may reach. Run the gate and let it correct you.</li>
+    <li>Only then the app root, and only then iOS — where the Xcode projects are generated from a spec rather than hand-edited.</li>
+  </ul>
+  <p>
+    A feature costs five modules and three registrations, every time. That is the price of the property,
+    and it is the same price whether the feature is trivial or not.
+  </p>
+  <p>
+    The authoritative version of these rules is not this article. It is
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/.claude/skills/refactored-architecture">.claude/skills/refactored-architecture/</a> in the repository — a SKILL file
+    and five references, around 1,900 lines, written to be <em>applied</em> rather than only read: point an
+    agent such as Claude Code at that directory and it will set the topology up in your repository, or
+    review an existing one against it. The repository proves the specification produces something that
+    builds; that directory is the specification.
+  </p>
+
   <h2>Next</h2>
   <p>
     That table is worth nothing if the property it measures can quietly regress. Someone adds one convenient

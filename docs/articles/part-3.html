@@ -249,6 +249,29 @@ nav.series a{display:block;margin:6px 0;}
     <li><strong>Source-level checking, not semantic.</strong> A determined developer defeats any of these with an indirection. The goal is not to make violations impossible; it is to make them <em>deliberate and visible</em> — the same goal as the allowlists in <a href="part-2.html">Part 2</a>.</li>
   </ul>
 
+  <h2>Taking this into your own codebase</h2>
+  <p>
+    The MVI layer is the most portable part of the repository, because it depends on almost nothing:
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/core/mvi">core/mvi</a> is the contract and the base ViewModel,
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/core/navigation">core/navigation</a> is the lifecycle-aware
+    collector. Copy both, and the source rules in <code>SourceRules.kt</code> come with the gate you
+    already wired up in Part 2.
+  </p>
+  <p>Three things are worth doing on the first day rather than the second:</p>
+  <ul>
+    <li><strong>Split Action, Event and Effect before you have effects to migrate.</strong> Merging them is cheap; unmerging them means auditing every screen.</li>
+    <li><strong>Give every composition root a graph-startup test.</strong> Runtime DI trades compile-time wiring errors for startup errors, and the test is what turns "it crashed in QA" back into "the build failed".</li>
+    <li><strong>Add each rule with the test that proves it rejects something.</strong> A rule with no rejection fixture is a rule you hope works — and in this series that is the difference between a check and a comment.</li>
+  </ul>
+  <p>
+    All of it — the topology, the gates, the MVI contract — is written down as an applicable
+    specification in <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/.claude/skills/refactored-architecture">.claude/skills/refactored-architecture/</a>: a SKILL file
+    and five references covering module blueprints, the build system, platform hosts and samples,
+    MVI/navigation/DI, and verification. Point an agent such as Claude Code at it to set this up in your
+    repository, or to review a repository you already have against it. The
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app#using-this-in-your-own-project">README</a> has the same steps for a human.
+  </p>
+
   <h2>The series, in one paragraph</h2>
   <p>
     A feature should build without the application it belongs to (<a href="part-1.html">Part 1</a>). That property

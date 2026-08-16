@@ -264,6 +264,94 @@ still reports `BUILD SUCCESSFUL`. Treat a green Linux build as evidence of nothi
 isolation gate is the one exception — it resolves dependency metadata rather than invoking the Apple
 toolchain, so it is valid everywhere.
 
+## Using this in your own project
+
+The repository is a reference you can lift from, not a library you depend on. Nothing here is
+published to a repository server: you copy the parts that are generic and write the parts that
+describe your product.
+
+**Copy as is** — `build-logic/` (convention plugins, the rule set and its tests), `core/mvi`,
+`core/navigation`, and the two scripts in `scripts/`.
+**Write for yourself** — `config/api-allowlist.txt`, `config/infrastructure-modules.txt`, every
+`sample/<feature>/isolation-allowlist.txt`, and the module list in `settings.gradle.kts`. Those four
+describe *your* topology; a copied allowlist is a lie about your graph.
+
+### Greenfield, in the order that works
+
+1. **Take `build-logic/` and include it.** In `settings.gradle.kts`, inside `pluginManagement`, add
+   `includeBuild("build-logic")`. It is an included build, so nothing is published and its own tests
+   run with `./gradlew buildLogicTest`.
+2. **Apply the gate at the root.** `id("kmpa.architecture")` in the root `build.gradle.kts` is what
+   registers `architectureCheck` and the per-sample `isolationCheck` tasks.
+3. **Create the two config files** — `config/api-allowlist.txt` and
+   `config/infrastructure-modules.txt`. Start them empty except for the header comment; the gate
+   tells you what you owe a justification for.
+4. **Lay out one feature before you lay out five.** `domain/<feature>` and `data/<feature>` and
+   `fixtures/<feature>` use `kmpa.kmp.library`; `presentation/<feature>` uses `kmpa.kmp.compose`.
+   Get the gate green on one feature — the rules teach faster than any document.
+5. **Add the sample.** `sample/<feature>/shared` uses `kmpa.kmp.framework`,
+   `sample/<feature>/androidApp` uses `kmpa.android.app`, and
+   `sample/<feature>/isolation-allowlist.txt` lists exactly the projects that sample may reach.
+   Run `./gradlew isolationCheck` and let it correct you.
+6. **Then the app root.** `app/shared` (`kmpa.kmp.framework`) is the only module allowed to know
+   that two features exist; `app/android` (`kmpa.android.app`) is a thin host.
+7. **Then iOS.** See below — the Xcode side is generated, not hand-edited.
+
+### Adding a feature, once the shape exists
+
+A feature costs five modules and three registrations. In order:
+
+```text
+domain/<feature>         kmpa.kmp.library    ports + use cases, pure Kotlin
+data/<feature>           kmpa.kmp.library    implementations; nothing else may depend on it
+fixtures/<feature>       kmpa.kmp.library    deterministic fakes for the ports
+presentation/<feature>   kmpa.kmp.compose    ViewModel, route graph, screens
+sample/<feature>/…       framework + android app + isolation-allowlist.txt
+```
+
+Then: add the projects to `settings.gradle.kts`, add the sample target to `iosSamples/project.yml`,
+and (optionally) check in an IDE run configuration under `.idea/runConfigurations/`. Finally run
+`./gradlew architectureCheck isolationCheck` — a new feature that compiles but breaks a boundary
+fails here, by name, before anyone reviews it.
+
+### Migrating an existing codebase
+
+Do not start by splitting modules. Start by making the boundary visible:
+
+1. Add `build-logic/` and the root plugin, and run `architectureCheck` on the codebase as it is.
+   The first run is a list of everything the architecture already violates. Do not fix it yet.
+2. Pick the feature you edit most. Extract its `domain` and `fixtures` first — those have no
+   dependencies to unwind — then its `presentation`.
+3. Give that one feature a sample and an allowlist. This is the moment the daily loop changes, and
+   it is worth doing before the second feature.
+4. Only then move `data`, and let the `sample → data` rule tell you what you missed.
+5. Keep the gates in CI from day one, so the boundary you just paid for cannot regress while you
+   migrate the next feature.
+
+### iOS setup
+
+Xcode projects are generated from reviewable specs; you never hand-edit a `.xcodeproj`.
+
+```bash
+brew install xcodegen
+./scripts/generate-xcode-projects.sh              # from iosApp/project.yml and iosSamples/project.yml
+./scripts/run-ios-simulator.sh FeedSample         # build, install and launch without opening Xcode
+```
+
+Adding a feature means adding one target to `iosSamples/project.yml`, which shares the Swift host
+code with the other samples. Point Android Studio's `.idea/xcode.xml` at `KmpArchitect.xcworkspace`
+to get all four schemes instead of only the production one.
+
+### The specification is executable
+
+The authoritative definition of these rules is
+[`.claude/skills/refactored-architecture/`](.claude/skills/refactored-architecture/) — a SKILL file
+and five references (module blueprints, build system, platform hosts and samples, MVI/navigation/DI,
+and architecture verification), about 1,900 lines in total. It is written to be applied, not only
+read: point an agent such as Claude Code at that directory and it can set the topology up in your
+repository, or review an existing one against it. The repository is the proof that the specification
+produces something that builds; that directory is the specification itself.
+
 ## Evidence
 
 Nothing in this repository claims a result that was not run.

@@ -267,6 +267,33 @@ nav.series a{display:block;margin:6px 0;}
     configuration-cache hit, but the decision is worth re-measuring on the machine your team actually uses.
   </p>
 
+  <h2>Wiring these gates into your own build</h2>
+  <p>
+    Two files and one line of plugin application, and the rest is your topology talking back to you:
+  </p>
+  <pre><code><span class="cm">// settings.gradle.kts</span><br>pluginManagement { includeBuild("build-logic") }<br><br><span class="cm">// build.gradle.kts (root)</span><br>plugins { id("kmpa.architecture") }</code></pre>
+  <p>
+    That registers <code>architectureCheck</code> and one <code>isolationCheck</code> task per sample per
+    platform. Then create <code>config/api-allowlist.txt</code> and
+    <code>config/infrastructure-modules.txt</code> empty, and one
+    <code>sample/&lt;feature&gt;/isolation-allowlist.txt</code> per sample. Do not copy mine: run the gate
+    and let it name what your graph actually contains, then decide line by line what deserves to stay.
+  </p>
+  <p>
+    Two things to keep when you port the rules. Keep the two configuration names —
+    <code>debugRuntimeClasspath</code> and <code>iosSimulatorArm64CompileKlibraries</code> — as constants you
+    can grep, because they are the whole coupling to AGP and the Kotlin plugin. And keep the
+    <code>error(...)</code> where the obvious code is <code>?: return</code>: a gate that silently stops
+    registering is the failure mode that costs you the property without ever telling you.
+  </p>
+  <p>
+    The rule set itself is plain Kotlin with no Gradle types near it, which is why it is worth lifting
+    wholesale: <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/build-logic">build-logic/</a>, tests included. The
+    authoritative description of what the rules are supposed to enforce lives in
+    <a href="https://github.com/kilcimurat/kmp-architect-sample-app/tree/main/.claude/skills/refactored-architecture">.claude/skills/refactored-architecture/</a> — a specification written to be
+    applied to a repository by a person or an agent, not just read.
+  </p>
+
   <h2>What this costs you</h2>
   <ul>
     <li><strong>The gates are only as good as whoever runs them.</strong> Both commands run on every push, on an

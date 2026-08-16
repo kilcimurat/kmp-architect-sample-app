@@ -180,8 +180,8 @@ nav.series a{display:block;margin:6px 0;}
 
   <h2>What a sample actually is</h2>
   <p>
-    Not a demo app. A <strong>composition root plus a NavHost</strong> — the composition root being the one
-    place in the feature’s world where “which implementation is live” gets decided.
+    Not a demo app. A <strong>composition root plus a NavHost</strong> — the only place in the feature’s
+    world where “which implementation is live” gets decided.
   </p>
   <pre><code>fun sampleFeedModules(): List&lt;Module&gt; = listOf(<br>    module {<br>        single&lt;FeedRepository&gt; {<br>            FakeFeedRepository(<br>                initialArticles = FeedFixtures.articles,<br>                refreshResults = listOf(Refreshed, Offline, Failed(RemoteUnavailable)),<br>            )<br>        }<br>        factory { ObserveFeed(get()) }<br>        factory { RefreshFeed(get()) }<br>    },<br>    feedPresentationModule,<br>)</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/sample/feed/shared/src/commonMain/kotlin/com/mkilci/kmparchitect/sample/feed/shared/SampleFeedModules.kt">SampleFeedModules.kt</a></p>

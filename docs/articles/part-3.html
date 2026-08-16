@@ -84,10 +84,10 @@ nav.series a{display:block;margin:6px 0;}
   <p>Most implementations collapse this into two concepts and spend years working around the collapse:</p>
   <ul>
     <li><strong>Action</strong> — what the user did. <code>ArticleClicked</code>. Not a state change, not a navigation command.</li>
-    <li><strong>Event</strong> — a state transition. Owns a pure <code>reduce</code>: a function that takes the old state and returns the new one, and does nothing else.</li>
+    <li><strong>Event</strong> — a state transition. Owns a pure <code>reduce</code>.</li>
     <li><strong>Effect</strong> — a one-shot request to something outside the screen: navigate, share, open a dialog.</li>
   </ul>
-  <p>The contract is small:</p>
+  <p>A <code>reduce</code> takes the old state and returns the new one, and does nothing else. The contract is small:</p>
   <pre><code>interface ScreenEvent&lt;S : ScreenState&gt; {<br>    fun reduce(oldState: S): S<br>}<br><br>override fun sendEvent(event: E) {<br>    mutableState.update { current -&gt; event.reduce(current) }<br>}</code></pre>
   <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/core/mvi/src/commonMain/kotlin/com/mkilci/kmparchitect/core/mvi/ScreenContract.kt">ScreenContract.kt</a></p>
   <p>

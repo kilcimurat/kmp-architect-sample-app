@@ -220,6 +220,34 @@ nav.series a{display:block;margin:6px 0;}
   </p>
   <p>That is the whole architecture, in two screenshots.</p>
 
+  <h3>The same sample, as an iOS app</h3>
+  <p>
+    On Android a sample is an APK and the question does not come up. On iOS it does: where does the app come
+    from? Three pieces, and only the first is per-feature work.
+  </p>
+  <p>
+    <strong>The sample's shared module is a static Apple framework.</strong> The convention plugin derives
+    its product name from the Gradle path, which is the detail that saves you: three modules all called
+    <code>shared</code> would otherwise produce three frameworks called <code>shared</code> and fail
+    confusingly inside Xcode. <code>:sample:feed:shared</code> exports <code>FeedSample</code>.
+  </p>
+  <p><strong>The Swift host is twelve lines</strong>, and they are the same twelve lines for every feature:</p>
+  <pre><code>import SwiftUI<br>import FeedSample<br><br>@main<br>struct FeedSampleApp: App {<br>    var body: some Scene {<br>        WindowGroup {<br>            SampleComposeRoot { FeedSampleViewControllerKt.FeedSampleViewController() }<br>                .ignoresSafeArea(.all)<br>        }<br>    }<br>}</code></pre>
+  <p class="srclink"><a href="https://github.com/kilcimurat/kmp-architect-sample-app/blob/main/iosSamples/Sources/Feed/FeedSampleApp.swift">FeedSampleApp.swift</a></p>
+  <p>
+    <strong>The Xcode target is a template instance, not a copy.</strong> Adding a feature is three lines in
+    a reviewable XcodeGen spec — <code>feature: Feed</code>, <code>gradleFeature: feed</code>, a display name
+    — and the template supplies the shared Swift sources plus a pre-build step that runs
+    <code>:sample:feed:shared:embedAndSignAppleFrameworkForXcode</code>. No <code>.xcodeproj</code> is ever
+    hand-edited; the generated projects are git-ignored.
+  </p>
+  <p>Which makes the iOS counterpart of the Gradle command above one line as well:</p>
+  <pre><code>./scripts/run-ios-simulator.sh FeedSample</code></pre>
+  <p>
+    Build, install and launch on a simulator without opening Xcode. The symmetry is the point: a feature is
+    not finished until its sample runs on both platforms, so running it on either has to cost one command.
+  </p>
+
   <h3>The interesting part: the edge of the sample</h3>
   <p>
     The feed screen opens articles. The article feature is deliberately outside the feed sample’s graph.
